@@ -1,0 +1,44 @@
+- name: Create Workspaces OU
+  microsoft.ad.ou:
+    name: Workspaces
+    path: "{{ dom_disname }}"
+    state: present
+
+- name: Give Domain Joiner Rights
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory
+
+      # Give Domain Joiner rights
+      $OrganizationalUnitDN =  "OU=Workspaces,{{ dom_disname }}"
+      $SearchAccount = Get-ADUser "svc_dj"
+      $SAM = $SearchAccount.SamAccountName
+      $UserAccount = "{{ netbios }}"+"\"+$SAM
+
+      DSQUERY * $OrganizationalUnitDN -filter '(|(objectClass=organizationalUnit))' -limit 0 | foreach-object {
+      dsacls.exe $_ /G $UserAccount":CCDC;Computer" /I:T | Out-Null
+      dsacls.exe $_ /G $UserAccount":LC;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":RC;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":WD;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":RP;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":WS;Validated write to service principal name;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":WS;Validated write to DNS host name;Computer" /I:S | Out-Null
+      }
+      $Ansible.Changed = $true
+    error_action: stop
+
+- name: Base GPO tasks
+  ansible.builtin.include_tasks: base_gpo_tasks.yml
+
+- name: Coalfire Security Override GPO tasks
+  ansible.builtin.include_tasks: override_gpo_tasks.yml
+
+- name: CIS Workspaces GPO tasks
+  ansible.builtin.include_tasks: cis_gpo_workspaces.yml
+  when: benchmark == 'cis'
+
+- name: Force GPUpdate
+  ansible.windows.win_command:
+    cmd: gpupdate.exe /force
+  register: gpupdate
+  changed_when: gpupdate.stdout_lines | select("match", ".*Computer Policy update has completed successfully.*")

@@ -1,0 +1,6 @@
+---
+# Elastic
+elastic_api_url: "https://esdata1.{{ ansible_domain }}:9200"
+
+# Kibana
+kibana_api_url: "https://kibana1.{{ ansible_domain }}:5601"

@@ -1,0 +1,32 @@
+- name: Get ECR password
+  ansible.builtin.command:
+    cmd: "aws ecr get-login-password --region {{ aws_region }}"
+  register: get_ecr_password
+
+- name: Add ECR Credential
+  awx.awx.credential:
+    name: ECR
+    description: ECR Credential
+    organization: "{{ aap_org_name }}"
+    credential_type: Container Registry
+    state: present
+    inputs:
+      host: "{{ ecr_repository_url | regex_search('.*\\.com') }}"
+      username: AWS
+      password: "{{ get_ecr_password.stdout }}"
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true
+
+- name: Set custom EE
+  awx.awx.execution_environment:
+    name: "custom_ee"
+    image: "{{ ecr_repository_url }}:latest"
+    organization: "{{ aap_org_name }}"
+    credential: ECR
+    pull: missing
+    state: present
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true
+    

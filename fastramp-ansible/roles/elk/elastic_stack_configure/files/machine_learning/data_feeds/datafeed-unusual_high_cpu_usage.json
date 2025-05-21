@@ -1,0 +1,45 @@
+{
+    "datafeed_id" : "datafeed-unusual_high_cpu_usage",
+    "job_id" : "unusual_high_cpu_usage",
+    "query_delay" : "99716ms",
+    "indices" : [
+      "metricbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "must" : [
+          {
+            "match_all" : { }
+          }
+        ]
+      }
+    },
+    "aggregations" : {
+      "buckets" : {
+        "date_histogram" : {
+          "field" : "@timestamp",
+          "fixed_interval" : "30000ms"
+        },
+        "aggregations" : {
+          "system.cpu.total.norm.pct" : {
+            "avg" : {
+              "field" : "system.cpu.total.norm.pct"
+            }
+          },
+          "@timestamp" : {
+            "max" : {
+              "field" : "@timestamp"
+            }
+          }
+        }
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "manual",
+      "time_span" : "30000000ms"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

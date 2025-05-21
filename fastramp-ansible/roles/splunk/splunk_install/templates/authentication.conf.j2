@@ -1,0 +1,55 @@
+[{{ project_name }} Active Directory Integration DC1]
+SSLEnabled = 1
+anonymous_referrals = 1
+bindDN = CN=svc_splunk,OU=Service Accounts,OU=Management,OU=All Users,{{ domain_dn }}
+bindDNpassword = {{ svc_splunk_password }}
+charset = utf8
+emailAttribute = mail
+enableRangeRetrieval = 0
+groupBaseDN = OU=Security Groups,OU=Management,OU=All Users,{{ domain_dn }}
+groupMappingAttribute = dn
+groupMemberAttribute = member
+groupNameAttribute = cn
+host = dc1.{{ ansible_domain }}
+nestedGroups = 0
+network_timeout = 20
+pagelimit = -1
+port = 636
+realNameAttribute = cn
+sizelimit = 1000
+timelimit = 15
+userBaseDN = OU=Management,OU=All Users,{{ domain_dn }}
+userNameAttribute = sAMAccountName
+
+[{{ project_name }} Active Directory Integration DC2]
+SSLEnabled = 1
+anonymous_referrals = 1
+bindDN = CN=svc_splunk,OU=Service Accounts,OU=Management,OU=All Users,{{ domain_dn }}
+bindDNpassword = {{ svc_splunk_password }}
+charset = utf8
+emailAttribute = mail
+enableRangeRetrieval = 0
+groupBaseDN = OU=Security Groups,OU=Management,OU=All Users,{{ domain_dn }}
+groupMappingAttribute = dn
+groupMemberAttribute = member
+groupNameAttribute = cn
+host = dc2.{{ ansible_domain }}
+nestedGroups = 0
+network_timeout = 20
+pagelimit = -1
+port = 636
+realNameAttribute = cn
+sizelimit = 1000
+timelimit = 15
+userBaseDN = OU=Management,OU=All Users,{{ domain_dn }}
+userNameAttribute = sAMAccountName
+
+[roleMap_{{ project_name }} Active Directory Integration DC1]
+Admin = SplunkAdmins
+
+[roleMap_{{ project_name }} Active Directory Integration DC2]
+Admin = SplunkAdmins
+
+[authentication]
+authSettings = {{ project_name }} Active Directory Integration DC1,{{ project_name }} Active Directory Integration DC2
+authType = LDAP

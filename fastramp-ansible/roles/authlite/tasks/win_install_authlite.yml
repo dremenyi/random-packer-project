@@ -1,0 +1,29 @@
+- name: Create App Directory
+  ansible.windows.win_file:
+    path: "{{ win_app_dir }}"
+    state: directory
+
+- name: Download Authlite installer
+  ansible.windows.win_get_url:
+    url: "{{ win_authlite_download_url }}"
+    dest: "{{ win_app_dir }}AuthLite_installer_x64.msi"
+
+- name: Check SHA256 Hash of file with stat
+  ansible.windows.win_stat:
+    path: "{{ win_app_dir }}AuthLite_installer_x64.msi"
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: win_authlite_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - win_authlite_file.stat.checksum == win_authlite_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ win_authlite_file.stat.checksum }}, the expected hash is {{ win_authlite_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Install authlite with arguments
+  ansible.windows.win_package:
+    path: "{{ win_app_dir }}AuthLite_installer_x64.msi"
+    arguments: "/qn"
+  notify: win reboot server

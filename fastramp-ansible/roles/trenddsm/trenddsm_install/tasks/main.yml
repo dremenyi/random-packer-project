@@ -1,0 +1,62 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set Python3.11 binary
+  ansible.builtin.set_fact:
+    python_binary: python3.11
+
+- name: Ubuntu - Set Python3.11 binary
+  ansible.builtin.set_fact:
+    python_binary: python3.11
+  when:
+    - hostvars['ansible1']['ansible_facts']['distribution'] == 'Ubuntu'
+    - hostvars['ansible1']['ansible_facts']['distribution_version'] == '22.04'
+
+- name: Install Selenium Prereqs
+  ansible.builtin.include_tasks: install_selenium_prereqs.yml
+  when: inventory_hostname == ansible_play_hosts_all[0] # This construct is used because run_once: true will not work with serial: 1
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install DSM
+  ansible.builtin.include_tasks: install_dsm.yml
+  when: '"dsm_s.service" not in ansible_facts.services'
+
+- name: Check for BCFKS
+  ansible.builtin.stat:
+    path: /opt/dsm/cacerts.bcfks
+  become: true
+  register: dsm_bcfks
+
+- name: Setup DSM
+  ansible.builtin.include_tasks: setup_dsm.yml
+  when: not dsm_bcfks.stat.exists
+
+# Commenting out DS agent cert, not working.
+# - name: Check for dsm_agent_chain file
+#  ansible.builtin.stat:
+#    path: /opt/dsm/ds_agent_chain.pem
+#  become: true
+#  register: ds_agent_chain
+
+# - name: Import DS Agent TLS cert chain
+#  ansible.builtin.include_tasks: import_ds_agent_chain.yml
+#  when: not ds_agent_chain.stat.exists
+
+- name: Configure LDAP
+  ansible.builtin.include_tasks: configure_ldap.yml
+  when: inventory_hostname == ansible_play_hosts_all[0] # This construct is used because run_once: true will not work with serial: 1
+
+- name: Create API Key
+  ansible.builtin.include_tasks: create_api_key.yml
+  when:
+    - inventory_hostname == ansible_play_hosts_all[0] # This construct is used because run_once: true will not work with serial: 1
+
+# - name: Configure Logging
+#   ansible.builtin.include_tasks: logging.yml
+#   when:
+#     - inventory_hostname == ansible_play_hosts_all[0] # This construct is used because run_once: true will not work with serial: 1
+#     - configure_log_ingest

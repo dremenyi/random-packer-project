@@ -1,0 +1,59 @@
+{
+    "job_id" : "windows_rare_user_type10_remote_login",
+    "job_type" : "anomaly_detector",
+    "job_version" : "7.6.1",
+    "groups" : [
+      "authentication",
+      "siem",
+      "winlogbeat"
+    ],
+    "description" : "SIEM Winlogbeat Auth: Unusual RDP (remote desktop protocol) user logins can indicate account takeover or credentialed access (beta)",
+    "analysis_config" : {
+      "bucket_span" : "15m",
+      "detectors" : [
+        {
+          "detector_description" : "rare by \"user.name\"",
+          "function" : "rare",
+          "by_field_name" : "user.name",
+          "detector_index" : 0
+        }
+      ],
+      "influencers" : [
+        "host.name",
+        "process.name",
+        "user.name"
+      ]
+    },
+    "analysis_limits" : {
+      "model_memory_limit" : "128mb",
+      "categorization_examples_limit" : 4
+    },
+    "data_description" : {
+      "time_field" : "@timestamp",
+      "time_format" : "epoch_ms"
+    },
+    "model_snapshot_retention_days" : 1,
+    "custom_settings" : {
+      "created_by" : "ml-module-siem-winlogbeat-auth",
+      "custom_urls" : [
+        {
+          "url_name" : "Host Details by process name",
+          "url_value" : "siem#/ml-hosts/$host.name$?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))"
+        },
+        {
+          "url_name" : "Host Details by user name",
+          "url_value" : "siem#/ml-hosts/$host.name$?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))"
+        },
+        {
+          "url_name" : "Hosts Overview by process name",
+          "url_value" : "siem#/ml-hosts?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))"
+        },
+        {
+          "url_name" : "Hosts Overview by user name",
+          "url_value" : "siem#/ml-hosts?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))"
+        }
+      ]
+    },
+    "results_index_name" : "custom-windows_rare_user_type10_remote_login",
+    "allow_lazy_open" : true
+  }

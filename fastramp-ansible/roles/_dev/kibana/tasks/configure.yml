@@ -1,0 +1,31 @@
+- name: Stop kibana
+  ansible.builtin.service:
+    name: kibana
+    state: stopped
+  become: true
+
+- name: Copy Templates
+  include_tasks: copy_templates.yml
+
+- name: Set elasticsearch Password
+  include_tasks: set_elasticsearch_password.yml
+
+- name: Ensure correct permissions on /opt
+  ansible.builtin.file:
+    path: /opt
+    owner: kibana
+    group: kibana
+    state: directory
+    recurse: true
+  become: true
+
+- name: Restart kibana
+  ansible.builtin.service:
+    name: kibana
+    state: restarted
+    enabled: true
+  become: true
+
+- name: Pause 30 seconds
+  ansible.builtin.pause:
+    seconds: 30

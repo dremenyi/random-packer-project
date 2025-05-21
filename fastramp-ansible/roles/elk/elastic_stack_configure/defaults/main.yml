@@ -1,0 +1,126 @@
+---
+# Elastic
+elastic_api_url: "https://esdata1.{{ ansible_domain }}:9200"
+
+# Kibana
+kibana_api_url: "https://kibana1.{{ ansible_domain }}:5601"
+
+# Change "enabled" property here to turn the application on or off.
+applications:
+  ### Cloud Platforms ###
+  - name: AWS
+    enabled: &aws_enabled true
+  ### Applications ###
+  - name: Ansible Tower
+    enabled: &ansibletower_enabled true
+  - name: Jira
+    enabled: &jira_enabled false
+  - name: Palo Alto
+    enabled: &paloalto_enabled false
+  - name: Nessus
+    enabled: &nessus_enabled false
+  - name: Trend DSM
+    enabled: &trend_enabled true
+
+# Agent Policies
+agent_policies:
+  ### Base ###
+  - name: Linux
+    namespace: linux
+    description: Linux Agent Policy
+    enabled: true
+  - name: Windows
+    namespace: windows
+    description: Windows Agent Policy
+    enabled: true
+  ### Applications ###
+  - name: Ansible Tower
+    namespace: towercontroller
+    description: Ansible Tower Agent Policy
+    enabled: *ansibletower_enabled
+  - name: Jira
+    namespace: jira
+    description: Jira Agent Policy
+    enabled: *jira_enabled
+  - name: Nessus
+    namespace: nessus
+    description: Nessus Agent Policy
+    enabled: *nessus_enabled
+  - name: Trend DSM
+    namespace: trenddsm
+    description: Trend DSM Agent Policy
+    enabled: *trend_enabled
+
+# Integrations
+integrations:
+  ### Base ###
+  ### Fleet ###
+  - name: aws
+    enabled: *aws_enabled
+    package_name: aws
+    package_version: 1.34.5
+    policy_namespace: fleet
+  - name: http_endpoint
+    enabled: true
+    package_name: http_endpoint
+    policy_namespace: fleet
+  - name: linux_system
+    enabled: true
+    package_name: system
+    policy_namespace: fleet
+  - name: panw
+    enabled: *paloalto_enabled
+    package_name: panw
+    policy_namespace: fleet
+  - name: tcp
+    enabled: true
+    package_name: tcp
+    policy_namespace: fleet
+  ### Linux ###
+  - name: linux_system
+    enabled: true
+    package_name: system
+    policy_namespace: linux
+  ### Windows ###
+  - name: windows
+    enabled: true
+    package_name: windows
+    policy_namespace: windows
+  ### Applications ###
+  ### Ansible Tower ###
+  - name: ansibletower_tcp
+    enabled: *ansibletower_enabled
+    package_name: tcp
+    policy_namespace: towercontroller
+  - name: ansibletower_udp
+    enabled: *ansibletower_enabled
+    package_name: udp
+    policy_namespace: towercontroller
+  - name: linux_system
+    enabled: *ansibletower_enabled
+    package_name: system
+    policy_namespace: towercontroller
+  ### Jira ###
+  - name: jira_system
+    enabled: *jira_enabled
+    package_name: system
+    policy_namespace: jira
+  ### Nessus ###
+  - name: nessus_system
+    enabled: *nessus_enabled
+    package_name: system
+    policy_namespace: nessus
+  ### Trend Micro ###
+  - name: trendmicro_cef
+    enabled: *trend_enabled
+    package_name: cef
+    policy_namespace: trenddsm
+  - name: linux_system
+    enabled: *trend_enabled
+    package_name: system
+    policy_namespace: trenddsm
+
+# Connectors
+connectors:
+  - name: jira
+    enabled: *jira_enabled

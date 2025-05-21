@@ -1,0 +1,30 @@
+- name: Set LDAP bind passphrase
+  ansible.builtin.command:
+    cmd: /usr/share/elasticsearch/bin/elasticsearch-keystore add xpack.security.authc.realms.active_directory.ad_realm.secure_bind_password --stdin --force
+    stdin: "{{ elastic_ldap_bind_password }}"
+  become: true
+  register: set_ldap_pass
+  changed_when: set_ldap_pass.rc == 0
+
+- name: Delegate to DC1
+  delegate_to: dc1
+  run_once: true
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['esdata1']['svc_ansible_da_password'] }}"
+  block:
+    - name: Create Read-Only account for LDAPS use
+      microsoft.ad.user:
+        name: svc_elastic
+        firstname: Service
+        surname: Elastic
+        password_never_expires: true
+        path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+        password: "{{ elastic_ldap_bind_password }}"
+        update_password: when_changed
+
+    - name: Create ElasticAdmins AD Group
+      microsoft.ad.group:
+        name: "ElasticAdmins"
+        scope: global
+        path: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"

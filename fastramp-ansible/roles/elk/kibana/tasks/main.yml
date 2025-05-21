@@ -1,0 +1,64 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+- name: Create and Mount /opt
+  ansible.builtin.include_tasks: create_and_mount_disk.yml
+  when: ansible_mounts | selectattr('mount', 'equalto', '/opt') | list | length == 0 # Skip if /opt mount already exists
+  tags:
+    - molecule-notest
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install kibana
+  ansible.builtin.include_tasks: install.yml
+  when: '"kibana.service" not in ansible_facts.services'
+
+- name: Copy TLS Certs
+  ansible.builtin.include_tasks: copy_tls_certs.yml
+
+# Force CA Trust Store update now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Check port 5601
+  ansible.builtin.wait_for:
+    port: 5601
+    timeout: 5
+  register: port_check
+  ignore_errors: true
+
+- name: Configure kibana
+  ansible.builtin.include_tasks: configure.yml
+  when: port_check is failed
+
+- name: Create CNAME record for Kibana ALB
+  community.windows.win_dns_record:
+    name: "kibana"
+    type: "CNAME"
+    value: "{{ kibana_alb_hostname }}"
+    zone: "{{ ansible_domain }}"
+  delegate_to: dc1
+  run_once: true
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['kibana1']['svc_ansible_da_password'] }}"
+
+# Assume failure if the port is not open and listening
+- name: Check port 5601
+  ansible.builtin.wait_for:
+    port: 5601
+    timeout: 5

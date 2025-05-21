@@ -1,0 +1,32 @@
+{
+    "datafeed_id" : "datafeed-windows_rare_user_runas_event",
+    "job_id" : "windows_rare_user_runas_event",
+    "query_delay" : "119235ms",
+    "indices" : [
+      "winlogbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "filter" : [
+          {
+            "term" : {
+              "event.code" : "4648"
+            }
+          },
+          {
+            "term" : {
+              "agent.type" : "winlogbeat"
+            }
+          }
+        ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    },
+    "max_empty_searches" : 10
+  }

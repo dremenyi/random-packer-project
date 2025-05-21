@@ -1,0 +1,38 @@
+- name: Apply System Settings config
+  trendmicro.deepsec.deepsec_system_settings:
+    state: present
+    config:
+      # Agent Configs
+      platform_setting_agent_initiated_activation_enabled:
+        value: "For any computers"
+      platform_setting_agent_initiated_activation_duplicate_hostname_mode:
+        value: "Activate a new Computer with the same name"
+      platform_setting_agent_initiated_activation_reactivate_cloned_enabled:
+        value: true
+      platform_setting_agent_initiated_activation_reactivate_unknown_enabled:
+        value: true
+      platform_setting_agent_initiated_activation_specify_hostname_enabled:
+        value: true
+      platform_setting_linux_upgrade_on_activation_enabled:
+        value: true
+      platform_setting_windows_upgrade_on_activation_enabled:
+        value: true
+      platform_setting_syslog_config_id:
+        value: "1"
+      platform_setting_inactive_agent_cleanup_enabled:
+        value: true
+      platform_setting_inactive_agent_cleanup_duration:
+        value: "1 Month"
+      # Product Usage
+      platform_setting_product_usage_data_collection_enabled:
+        value: false
+      # Terms and Conditions
+      platform_setting_user_enforce_terms_and_conditions_enabled:
+        value: true
+      platform_setting_user_enforce_terms_and_conditions_title:
+        value: WARNING!!!
+      platform_setting_user_enforce_terms_and_conditions_message:
+        value: |
+          You are accessing a U.S. Government information system. Unauthorized or improper use of this system may result in disciplinary action, as well as civil and criminal penalties. By using this information system, you understand
+          and consent to the following: (1) You have no reasonable expectation of privacy regarding any communication or information transiting or stored on this information system., (2) All attempts to access and use this system
+          and/or its resources are subject to monitoring and recording., (3) You expressly consent to this monitoring or recording, and it is advised that if such reveals evidence any criminal activity or abuse of authority, the information will be reported to authorities for action.

@@ -1,0 +1,26 @@
+- name: Search for Existing Ansible repo
+  ansible.builtin.set_fact:
+    search_repo: "{{ list_projects.json | community.general.json_query(field_query) }}"
+  vars:
+    field_query: "[?name=='{{ item.value.repo_name }}']"
+
+# 201 = Success
+# 422 = Project namespace name has already been taken, Name has already been taken, Path has already been taken
+- name: Import Github Repository
+  ansible.builtin.uri:
+    url: "{{ gitlab_api_url }}api/v4/import/github"
+    method: POST
+    body_format: json
+    status_code: 201, 422
+    headers:
+      Authorization: "Bearer {{ initial_oauth_token.json.access_token }}"
+    body:
+      personal_access_token: "{{ github_personal_access_token }}"
+      repo_id: "{{ item.value.repo_id }}"
+      target_namespace: "iac/{{ item.key }}"
+  register: import_github_repo
+  when: search_repo | length == 0
+  changed_when: import_github_repo.status == 201
+  retries: 2
+  delay: 60
+  until: import_github_repo is not failed

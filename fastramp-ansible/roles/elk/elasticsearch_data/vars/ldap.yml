@@ -1,0 +1,22 @@
+---
+# LDAP
+ldap_settings:
+  xpack.security.authc.realms.active_directory:
+    ad_realm:
+      order: 0
+      domain_name: "{{ ansible_domain }}"
+      url:
+        - ldaps://dc2.{{ ansible_domain }}:3269
+        - ldaps://dc1.{{ ansible_domain }}:3269
+      load_balance:
+        type: round_robin
+      bind_dn: "CN=svc_elastic,OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+      user_search:
+        base_dn: "OU=Management,OU=All Users,{{ dom_disname }}"
+      group_search:
+        base_dn: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+      ssl:
+        certificate_authorities:
+          - /etc/elasticsearch/certs/cacert.pem
+      files:
+        role_mapping: "/etc/elasticsearch/group_to_role_mapping.yml"

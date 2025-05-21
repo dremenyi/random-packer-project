@@ -1,0 +1,57 @@
+- name: reload systemctl daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: rhel update ca trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true
+
+- name: ubuntu update ca trust
+  ansible.builtin.command: update-ca-certificates
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true
+
+- name: Pause
+  ansible.builtin.pause:
+    seconds: 120
+
+- name: restart redhat auditd service
+  ansible.builtin.command: service auditd condrestart
+  become: true
+  when: ansible_os_family == 'RedHat'
+  changed_when: true
+
+- name: restart non-redhat auditd service
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+  become: true
+  when: ansible_os_family != 'RedHat'
+
+- name: stop splunk
+  ansible.builtin.service:
+    name: Splunkd
+    state: stopped
+  become: true
+
+- name: start splunk
+  ansible.builtin.service:
+    name: Splunkd
+    state: started
+  become: true
+
+- name: restart splunk
+  ansible.builtin.service:
+    name: Splunkd
+    state: restarted
+  become: true
+
+- name: wait for splunkd
+  ansible.builtin.wait_for:
+    port: 8089
+    state: started
+    delay: 5

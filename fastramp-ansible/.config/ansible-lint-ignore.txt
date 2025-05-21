@@ -1,0 +1,18 @@
+### False Positives ###
+roles/elk/elastic_stack_configure/tasks/api_integrations.yml jinja[invalid]
+roles/elk/elastic_stack_configure/tasks/store_enrollment_tokens.yml jinja[invalid]
+#roles/elk/elasticsearch_data/tasks/configure.yml jinja[spacing]
+roles/elk/elasticsearch_ingest/tasks/configure.yml jinja[spacing]
+roles/elk/fleet_server/tasks/api_fleet_outputs.yml jinja[invalid]
+roles/elk/fleet_server/tasks/api_get_agent_policy_ids.yml jinja[invalid]
+roles/elk/fleet_server/tasks/api_integrations.yml jinja[invalid]
+roles/enterprise_certificate_authority/tasks/root_ca_cert.yml jinja[invalid]
+roles/primary_domain_controller/tasks/config_ad.yml jinja[invalid]
+
+### Intentional ###
+roles/burpsuite/tasks/install_gui.yml command-instead-of-module # Used to gather info about systemd
+roles/partition_disk/tasks/main.yml command-instead-of-module # auditd can only be stopped using explicit service command
+roles/splunk/lin_splunk_uf_deploy/handlers/main.yml command-instead-of-module # auditd can only be stopped using explicit service command
+roles/splunk/lin_splunk_uf_deploy/tasks/install_splunk.yml command-instead-of-module # command module is used to provide arguments to rpm
+roles/splunk/splunk_install/handlers/main.yml command-instead-of-module # auditd can only be stopped using explicit service command
+roles/splunk/splunk_install/tasks/install_splunk.yml command-instead-of-module # command module is used to provide arguments to rpm

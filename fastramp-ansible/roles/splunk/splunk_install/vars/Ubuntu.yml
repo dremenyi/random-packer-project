@@ -1,0 +1,6 @@
+splunk_package_url: "https://download.splunk.com/products/splunk/releases/{{ splunk_package_version }}/linux/splunk-{{ splunk_package_version }}-{{ build_id }}-linux-2.6-amd64.deb"
+# Append ".sha512" to the download URL to get the file hash
+splunk_installer_hash: 3126a05ca0fb9341bfe423d8d0bbd94025bf473497a42db22ce9bc9be96823fba52133dc88501d239d898c7ab818ee6e22c6e5673b0ea6286e0747e5a53188a3
+splunk_installer_name: splunk_full.deb
+root_ca_store: /usr/local/share/ca-certificates/cacert.crt
+update_ca_handler: ubuntu update ca trust

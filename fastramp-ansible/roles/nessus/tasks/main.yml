@@ -1,0 +1,43 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Parse Nessus Download API
+  ansible.builtin.include_tasks: parse_nessus_download_api.yml
+  when: '"nessusd.service" not in ansible_facts.services'
+
+- name: Install Nessus
+  ansible.builtin.include_tasks: install_nessus.yml
+  when: '"nessusd.service" not in ansible_facts.services'
+
+# Note: We assume that altering TLS isn't necessary if the cert file already exists.
+- name: Check if Server cert exists
+  ansible.builtin.stat:
+    path: /opt/nessus/com/nessus/CA/servercert.pem
+  register: cert_check
+  become: true
+
+- name: Deploy TLS Certs
+  ansible.builtin.include_tasks: deploy_tls_certs.yml
+  when: not cert_check.stat.exists
+
+- name: Create Nessus scan account in AD
+  ansible.builtin.include_tasks: configure_scan_account.yml
+
+- name: Setup Nessus
+  ansible.builtin.include_tasks: setup_nessus.yml

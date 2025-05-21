@@ -1,0 +1,36 @@
+{
+    "datafeed_id" : "datafeed-hosts_rare_process_activity_ecs",
+    "job_id" : "hosts_rare_process_activity_ecs",
+    "query_delay" : "118988ms",
+    "indices" : [
+      "auditbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "filter" : [
+          {
+            "term" : {
+              "event.module" : "auditd"
+            }
+          }
+        ],
+        "must" : {
+          "exists" : {
+            "field" : "auditd.data.syscall"
+          }
+        },
+        "must_not" : {
+          "exists" : {
+            "field" : "container.runtime"
+          }
+        }
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

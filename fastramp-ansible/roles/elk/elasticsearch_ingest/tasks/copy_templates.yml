@@ -1,0 +1,51 @@
+- name: Copy elasticsearch.yml from template
+  ansible.builtin.template:
+    src: elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    force: true
+    mode: "0644"
+    owner: elasticsearch
+    group: elasticsearch
+  become: true
+
+- name: Copy gc.options from template
+  ansible.builtin.template:
+    src: gc.options.j2
+    dest: /etc/elasticsearch/jvm.options.d/gc.options
+    force: true
+    mode: "0644"
+    owner: elasticsearch
+    group: elasticsearch
+  become: true
+
+- name: Copy heap.options from template
+  ansible.builtin.template:
+    src: heap.options.j2
+    dest: /etc/elasticsearch/jvm.options.d/heap.options
+    force: true
+    mode: "0644"
+    owner: elasticsearch
+    group: elasticsearch
+  become: true
+
+- name: Copy handshake.options from template
+  ansible.builtin.template:
+    src: handshake.options.j2
+    dest: /etc/elasticsearch/jvm.options.d/handshake.options
+    force: true
+    mode: "0644"
+    owner: elasticsearch
+    group: elasticsearch
+  become: true
+
+- name: Copy group_to_role_mapping.yml from template
+  ansible.builtin.template:
+    src: group_to_role_mapping.yml.j2
+    dest: /etc/elasticsearch/group_to_role_mapping.yml
+    force: true
+    mode: "0644"
+    owner: elasticsearch
+    group: elasticsearch
+  become: true
+  tags:
+    - molecule-notest

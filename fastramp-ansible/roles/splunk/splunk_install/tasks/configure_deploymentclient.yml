@@ -1,0 +1,35 @@
+- name: Configure DS URI in deploymentclient.conf
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/deploymentclient.conf
+    section: 'target-broker:deploymentServer'
+    option: targetUri
+    value: "{{ splunk_uri_ds }}"
+    owner: splunk
+    group: splunk
+    mode: "0644"
+  become: true
+  notify: restart splunk
+
+- name: Configure client name in deploymentclient.conf
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/deploymentclient.conf
+    section: 'deployment-client'
+    option: clientName
+    value: "{{ inventory_hostname }}"
+    owner: splunk
+    group: splunk
+    mode: "0644"
+  become: true
+  notify: restart splunk
+
+- name: Configure deployment server pass4SymmKey in server.conf
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: deployment
+    option: pass4SymmKey
+    value: "{{ pass_4_symm_key }}"
+    owner: splunk
+    group: splunk
+    mode: "0644"
+  become: true
+  notify: restart splunk

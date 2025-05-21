@@ -1,0 +1,74 @@
+- name: Get Root CA information
+  community.crypto.x509_certificate_info:
+    path: "{{ elastic_home }}/certs/cacert.pem"
+  register: cacert_result
+  become: true
+
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    - name: Get Fleet outputs
+      ansible.builtin.uri:
+        url: "{{ kibana_api_url }}/api/fleet/outputs"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: GET
+        force_basic_auth: true
+        status_code: 200
+      register: fleet_outputs
+      changed_when: false
+
+    - name: Debug fleet_outputs
+      ansible.builtin.debug:
+        var: fleet_outputs
+
+    - name: Debug Existing Outputs
+      ansible.builtin.debug:
+        msg: "{{ fleet_outputs.json | community.general.json_query( field_query ) }}"
+      vars:
+        field_query: "items[?name=='Elasticsearch']"
+
+    - name: Check Existing Outputs
+      ansible.builtin.set_fact:
+        existing_outputs: "{{ fleet_outputs.json | community.general.json_query( field_query ) }}"
+      vars:
+        field_query: "items[?name=='Elasticsearch']"
+
+    - name: Set default elasticsearchingest list to empty array
+      ansible.builtin.set_fact:
+        elasticsearchingest_list: []
+
+    - name: Format elasticsearchingest item and add to list
+      ansible.builtin.set_fact:
+        elasticsearchingest_list: "{{ elasticsearchingest_list + [ 'https://' ~ item ~ '.' ~ ansible_domain ~ ':9200' ] }}"
+      loop: "{{ query('inventory_hostnames', 'ingest') }}"
+
+    - name: Join elasticsearchingest list to string
+      ansible.builtin.set_fact:
+        elasticsearchingest_string: "{{ elasticsearchingest_list | join(',') }}"
+
+    - name: Configure Fleet outputs
+      ansible.builtin.uri:
+        url: "{{ kibana_api_url }}/api/fleet/outputs"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: POST
+        force_basic_auth: true
+        status_code: 200
+        headers:
+          kbn-xsrf: true
+        body_format: json
+        body:
+          name: "Elasticsearch"
+          type: "elasticsearch"
+          is_default: true
+          is_default_monitoring: true
+          hosts: "{{ elasticsearchingest_list }}"
+          ca_sha256: "{{ cacert_result.fingerprints.sha256 }}"
+      register: add_fleet_outputs
+      changed_when: add_fleet_outputs.status == 200
+      when: existing_outputs | length == 0
+
+    - name: Debug add_fleet_outputs
+      ansible.builtin.debug:
+        var: add_fleet_outputs

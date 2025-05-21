@@ -1,0 +1,133 @@
+- name: Create reverse lookup zone
+  community.windows.win_dns_zone:
+    name: "{{ reverse_lookup_zone | ansible.utils.ipaddr('revdns') | regex_replace('^[0-9]+\\.+[0-9]+\\.', '') }}" # Should look like 50.168.192.in-addr.arpa
+    replication: forest
+    type: primary
+    state: present
+    dynamic_update: secure
+  register: reverse_lookup_zone_result
+  until: reverse_lookup_zone_result is not failed
+  retries: 20 # Adding retries as AD/DNS may not actually be ready after reboot
+  delay: 30
+
+- name: Get DNS Suffix
+  ansible.windows.win_powershell:
+    script: (Get-DnsClientGlobalSetting).SuffixSearchList
+    error_action: stop
+  register: dns_suffix_search_list
+  changed_when: false
+
+- name: Set DNS Suffix
+  ansible.windows.win_powershell:
+    script: "Set-DnsClientGlobalSetting -SuffixSearchList @('{{ domain }}')"
+    error_action: stop
+  when: domain not in dns_suffix_search_list.output | list
+
+- name: Get DNS Scavenging
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name DnsServer
+
+      $Scavenge = Get-DnsServerScavenging
+      if(($Scavenge.NoRefreshInterval -eq '7.00:00:00') -and ($Scavenge.RefreshInterval -eq '7.00:00:00') `
+      -and ($Scavenge.ScavengingInterval -eq '7.00:00:00') -and ($Scavenge.ScavengingState -eq $true)){
+        $Ansible.Result = $true
+      }
+      else{
+        $Ansible.Result = $false
+      }
+    error_action: stop
+  register: dns_scavenging
+  changed_when: false
+
+- name: Set DNS Scavenging
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name DnsServer
+
+      Set-DnsServerScavenging -ScavengingState $True -ApplyOnAllZones -RefreshInterval 7.00:00:00 `
+      -NoRefreshInterval 7.00:00:00 -ScavengingInterval 7.00:00:00 -Verbose
+    error_action: stop
+  changed_when: dns_scavenging_result.verbose | select("match", ".*successfully set.*")
+  register: dns_scavenging_result
+  when: not dns_scavenging.result
+
+- name: Check for IP address
+  ansible.windows.win_powershell:
+    script: |
+      $Ansible.Result = Get-DnsClientServerAddress | Where-Object -FilterScript { $_.ServerAddresses -contains "{{ first_dc_ip }}" }
+    error_action: stop
+  changed_when: false
+  register: ip_check
+
+- name: Configure DNS
+  ansible.windows.win_dns_client:
+    adapter_names: "*"
+    ipv4_addresses:
+      - "{{ second_dc_ip }}"
+      - "{{ first_dc_ip }}"
+      - "127.0.0.1"
+  when: ip_check.result == None
+
+- name: Configure NLA Dependencies
+  ansible.windows.win_service:
+    name: nlasvc
+    start_mode: delayed
+    dependencies: [DNS, NTDS]
+    dependency_action: add
+  register: nla_svc
+  notify: Restart NLA
+
+- name: Check if AD Recycle Bin is Enabled
+  ansible.windows.win_powershell:
+    script: Get-ADOptionalFeature -Filter 'Name -like "Recycle Bin Feature"' | Select-Object -ExpandProperty EnabledScopes
+    error_action: stop
+  register: ad_recycle
+  changed_when: false
+
+- name: Enable AD Recycle Bin
+  ansible.windows.win_powershell:
+    script: "Enable-ADOptionalFeature 'Recycle Bin Feature' -Scope ForestOrConfigurationSet -Target {{ domain }} -Confirm:$false -Verbose"
+    error_action: stop
+  when: ad_recycle.output | length == 0
+  register: ad_recycle_result
+  changed_when: ad_recycle_result.verbose | select("match", ".*Performing the operation.*")
+
+- name: Get AD tombstone period
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory
+
+      $ADConfigContext = (Get-ADRootDSE).configurationNamingContext
+      $DirectoryServicesConfigPartition = Get-ADObject -Identity “CN=Directory Service,CN=Windows NT,CN=Services,$ADConfigContext” `
+      -Partition $ADConfigContext -Properties *
+      $Ansible.Result = $DirectoryServicesConfigPartition.tombstoneLifetime
+    error_action: stop
+  register: ad_tombstone_period
+  changed_when: false
+
+- name: Set AD tombstone period to 14 days
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory
+
+      $ADConfigContext = (Get-ADRootDSE).configurationNamingContext
+      Set-ADObject -Identity "CN=Directory Service,CN=Windows NT,CN=Services,$ADConfigContext" -Partition $ADConfigContext `
+      -Replace @{tombstonelifetime='14'} -Verbose
+    error_action: stop
+  when: ad_tombstone_period.result != 14
+  register: ad_tombstone_period_result
+  changed_when: ad_tombstone_period_result.verbose | select("match", ".*Performing the operation.*")
+
+- name: Check time source
+  ansible.windows.win_command:
+    cmd: w32tm /query /source
+  register: time_source
+  changed_when: false
+
+- name: Set time server NTP
+  ansible.windows.win_command:
+    cmd: "w32tm /config /manualpeerlist:{{ time_server }} /syncfromflags:manual /reliable:yes /update"
+  when: time_source.stdout | trim != time_server
+  register: set_time_source
+  changed_when: "'The command completed successfully.' in set_time_source.stdout"

@@ -1,0 +1,326 @@
+anomaly_detection_jobs:
+  - job_id: anomalous_sudo_commands
+    enabled: true
+    body:
+      groups:
+        - coalfire
+        - ac-17
+        - sudo
+        - processes
+      analysis_config:
+        bucket_span: 15m
+        detectors:
+          - detector_description: high_count partitionfield="host.name"
+            function: high_count
+            partition_field_name: host.name
+            detector_index: 0
+          - detector_description: distinct_count("system.auth.sudo.command") partitionfield="host.name"
+            function: distinct_count
+            field_name: system.auth.sudo.command
+            partition_field_name: host.name
+            detector_index: 1
+        influencers:
+          - host.name
+          - user.name
+      analysis_limits:
+        model_memory_limit: 12mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      results_index_name: shared
+      allow_lazy_open: false
+
+  - job_id: coalfire_session_termination
+    enabled: true
+    body:
+      datafeed_id: datafeed-coalfire_session_termination
+      query_delay: 61811ms
+      indices:
+        - "*beat*"
+      query:
+        bool:
+          should:
+            - bool:
+                should:
+                  - match_phrase:
+                      event.action: logged-out
+                minimum_should_match: 1
+            - bool:
+                should:
+                  - match_phrase:
+                      event.action: user_logout
+                minimum_should_match: 1
+          minimum_should_match: 1
+          filter: []
+          must_not: []
+      scroll_size: 1000
+      chunking_config:
+        mode: auto
+      delayed_data_check_config:
+        enabled: true
+
+  - job_id: failed_login_attempts
+    enabled: true
+    body:
+      groups:
+        - coalfire
+        - ac-7
+        - login
+        - failed
+        - filebeat
+      description: ""
+      analysis_config:
+        bucket_span: 15m
+        detectors:
+          - detector_description: high_count partitionfield="host.name"
+            function: high_count
+            partition_field_name: host.name
+            detector_index: 0
+        influencers:
+          - host.name
+      analysis_limits:
+        model_memory_limit: 12mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      results_index_name: shared
+      allow_lazy_open: false
+
+  - job_id: file_integrity_coalfire
+    enabled: true
+    body:
+      groups:
+        - coalfire
+        - au-9
+        - auditbeat
+        - file-integrity
+      description: ""
+      analysis_config:
+        bucket_span: 15m
+        detectors:
+          - detector_description: non_zero_count
+            function: non_zero_count
+            detector_index: 0
+        influencers:
+          - host.name
+          - event.action
+          - file.owner
+      analysis_limits:
+        model_memory_limit: 10mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      results_index_name: shared
+      allow_lazy_open: false
+
+  ### Hosts ###
+  - job_id: hosts_high_count_process_events_ecs
+    enabled: true
+    body:
+      groups:
+        - auditd
+      description:
+        "Auditbeat Hosts: Detect unusual increases in process execution rates
+        (ECS)"
+      analysis_config:
+        bucket_span: 1h
+        detectors:
+          - detector_description: High process rate on hosts
+            function: high_non_zero_count
+            partition_field_name: host.name
+            detector_index: 0
+        influencers:
+          - host.name
+          - process.executable
+      analysis_limits:
+        model_memory_limit: 256mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      custom_settings:
+        created_by: ml-module-auditbeat-process-hosts
+        custom_urls:
+          - url_name: Process rate
+            time_range: 1h
+            url_value: kibana#/dashboard/ml_auditbeat_hosts_process_event_rate_ecs?_g=(time:(from:'$earliest$',mode:absolute,to:'$latest$'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:9d730ac0-5e48-11ea-87a9-c344196f9067,key:event.module,negate:!f,params:(query:auditd),type:phrase,value:auditd),query:(match:(event.module:(query:auditd,type:phrase)))),('$state':(store:appState),exists:(field:container.runtime),meta:(alias:!n,disabled:!f,index:9d730ac0-5e48-11ea-87a9-c344196f9067,key:container.runtime,negate:!t,type:exists,value:exists)),('$state':(store:appState),exists:(field:auditd.data.syscall),meta:(alias:!n,disabled:!f,index:9d730ac0-5e48-11ea-87a9-c344196f9067,key:auditd.data.syscall,negate:!f,type:exists,value:exists))),query:(language:kuery,query:'host.name:$host.name$'))
+          - url_name: Raw data
+            time_range: 1h
+            url_value: kibana#/discover/ml_auditbeat_hosts_process_events_ecs?_g=(time:(from:'$earliest$',mode:absolute,to:'$latest$'))&_a=(index:'9d730ac0-5e48-11ea-87a9-c344196f9067',query:(language:kuery,query:'host.name:$host.name$'))
+      results_index_name: shared
+      allow_lazy_open: false
+
+  - job_id: hosts_rare_process_activity_ecs
+    enabled: true
+    body:
+      groups:
+        - auditd
+      description: "Auditbeat Hosts: Detect rare process executions on hosts (ECS)"
+      analysis_config:
+        bucket_span: 1h
+        detectors:
+          - detector_description: Rare process execution on hosts
+            function: rare
+            by_field_name: process.executable
+            partition_field_name: host.name
+            detector_index: 0
+        influencers:
+          - host.name
+          - process.executable
+      analysis_limits:
+        model_memory_limit: 256mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      custom_settings:
+        created_by: ml-module-auditbeat-process-hosts
+        custom_urls:
+          - url_name: Process explorer
+            time_range: 1h
+            url_value: kibana#/dashboard/ml_auditbeat_hosts_process_explorer_ecs?_g=(time:(from:'$earliest$',mode:absolute,to:'$latest$'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,disabled:!f,index:9d730ac0-5e48-11ea-87a9-c344196f9067,key:event.module,negate:!f,params:(query:auditd),type:phrase,value:auditd),query:(match:(event.module:(query:auditd,type:phrase)))),('$state':(store:appState),exists:(field:container.runtime),meta:(alias:!n,disabled:!f,index:9d730ac0-5e48-11ea-87a9-c344196f9067,key:container.runtime,negate:!t,type:exists,value:exists)),('$state':(store:appState),exists:(field:auditd.data.syscall),meta:(alias:!n,disabled:!f,index:9d730ac0-5e48-11ea-87a9-c344196f9067,key:auditd.data.syscall,negate:!f,type:exists,value:exists))),query:(language:kuery,query:'host.name:$host.name$'))
+          - url_name: Raw data
+            time_range: 1h
+            url_value:
+              kibana#/discover/ml_auditbeat_hosts_process_events_ecs?_g=(time:(from:'$earliest$',mode:absolute,to:'$latest$'))&_a=(index:'9d730ac0-5e48-11ea-87a9-c344196f9067',query:(language:kuery,query:'host.name:$host.name$
+              AND process.executable:$process.executable$'))
+      results_index_name: shared
+      allow_lazy_open: false
+
+  ### Linux ###
+  - job_id: linux_anomalous_network_activity_ecs
+    enabled: true
+    body:
+      groups:
+        - siem
+        - auditbeat
+        - process
+      description:
+        "SIEM Auditbeat: Looks for unusual processes using the network which
+        could indicate command-and-control, lateral movement, persistence, or data exfiltration
+        activity (beta)"
+      analysis_config:
+        bucket_span: 15m
+        detectors:
+          - detector_description: rare by "process.name"
+            function: rare
+            by_field_name: process.name
+            detector_index: 0
+        influencers:
+          - host.name
+          - process.name
+          - user.name
+          - destination.ip
+      analysis_limits:
+        model_memory_limit: 64mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      custom_settings:
+        created_by: ml-module-siem-auditbeat
+        custom_urls:
+          - url_name: Host Details by process name
+            url_value: siem#/ml-hosts/$host.name$?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Host Details by user name
+            url_value: siem#/ml-hosts/$host.name$?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Hosts Overview by process name
+            url_value: siem#/ml-hosts?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Hosts Overview by user name
+            url_value: siem#/ml-hosts?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+      results_index_name: shared
+      allow_lazy_open: true
+
+  - job_id: linux_anomalous_network_port_activity_ecs
+    enabled: true
+    body:
+      groups:
+        - siem
+        - auditbeat
+        - network
+      description:
+        "SIEM Auditbeat: Looks for unusual destination port activity that could
+        indicate command-and-control, persistence mechanism, or data exfiltration activity
+        (beta)"
+      analysis_config:
+        bucket_span: 15m
+        detectors:
+          - detector_description: rare by "destination.port"
+            function: rare
+            by_field_name: destination.port
+            detector_index: 0
+        influencers:
+          - host.name
+          - process.name
+          - user.name
+          - destination.ip
+      analysis_limits:
+        model_memory_limit: 32mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      custom_settings:
+        created_by: ml-module-siem-auditbeat
+        custom_urls:
+          - url_name: Host Details by process name
+            url_value: siem#/ml-hosts/$host.name$?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Host Details by user name
+            url_value: siem#/ml-hosts/$host.name$?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Hosts Overview by process name
+            url_value: siem#/ml-hosts?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Hosts Overview by user name
+            url_value: siem#/ml-hosts?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+      results_index_name: shared
+      allow_lazy_open: true
+  - job_id: linux_anomalous_network_service
+    enabled: true
+    body:
+      groups:
+        - siem
+        - auditbeat
+        - network
+      description:
+        "SIEM Auditbeat: Looks for unusual listening ports that could indicate
+        execution of unauthorized services, backdoors, or persistence mechanisms (beta)"
+      analysis_config:
+        bucket_span: 15m
+        detectors:
+          - detector_description: rare by "auditd.data.socket.port"
+            function: rare
+            by_field_name: auditd.data.socket.port
+            detector_index: 0
+        influencers:
+          - host.name
+          - process.name
+          - user.name
+      analysis_limits:
+        model_memory_limit: 128mb
+        categorization_examples_limit: 4
+      data_description:
+        time_field: "@timestamp"
+        time_format: epoch_ms
+      model_snapshot_retention_days: 1
+      custom_settings:
+        created_by: ml-module-siem-auditbeat
+        custom_urls:
+          - url_name: Host Details by process name
+            url_value: siem#/ml-hosts/$host.name$?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Host Details by user name
+            url_value: siem#/ml-hosts/$host.name$?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Hosts Overview by process name
+            url_value: siem#/ml-hosts?_g=()&query=(query:'process.name%20:%20%22$process.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+          - url_name: Hosts Overview by user name
+            url_value: siem#/ml-hosts?_g=()&query=(query:'user.name%20:%20%22$user.name$%22',language:kuery)&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))
+      results_index_name: shared
+      allow_lazy_open: true

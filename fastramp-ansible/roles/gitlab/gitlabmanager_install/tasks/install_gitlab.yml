@@ -1,0 +1,24 @@
+# Install GitLab and its dependencies.
+- name: Install GitLab dependencies.
+  ansible.builtin.package:
+    name: "{{ gitlab_dependencies }}"
+    state: present
+  become: true
+
+- name: Download GitLab repository installation script.
+  ansible.builtin.get_url:
+    url: "{{ gitlab_repository_installation_script_url }}"
+    dest: /tmp/gitlab_install_repository.sh
+    validate_certs: true
+
+- name: Install GitLab repository.
+  ansible.builtin.command:
+    cmd: bash /tmp/gitlab_install_repository.sh
+    creates: /etc/yum.repos.d/gitlab_nightly-fips-builds.repo
+  become: true
+
+- name: Install GitLab
+  ansible.builtin.package:
+    name: gitlab-fips # Non-FIPS = gitlab-ee; FIPS = gitlab-fips
+    state: present
+  become: true

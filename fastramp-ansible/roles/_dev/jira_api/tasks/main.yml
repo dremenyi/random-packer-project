@@ -1,0 +1,34 @@
+---
+- name: Load AWS vars
+  include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Get Application Role
+  uri:
+    url: "{{ jira_api_url }}/applicationrole"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: yes
+    status_code: 200
+  register: get_application_role
+
+- name: Debug get_application_role
+  debug:
+    var: get_application_role.json
+
+- name: Get Application Role Jira service desk
+  uri:
+    url: "{{ jira_api_url }}/applicationrole/jira-servicedesk"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: yes
+    status_code: 200
+  register: get_application_role_servicedesk
+
+- name: Debug get_application_role_servicedesk
+  debug:
+    var: get_application_role_servicedesk.json

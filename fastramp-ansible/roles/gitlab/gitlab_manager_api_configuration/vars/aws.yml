@@ -1,0 +1,17 @@
+---
+# Common
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path', endpoint=ssm_endpoint) }}"
+gitlab_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/gitlab_secrets_path', endpoint=ssm_endpoint) }}"
+ssm_parameter_store_key_id: "{{ lookup('amazon.aws.aws_ssm', '/production/ssm_parameter_store_key_id', endpoint=ssm_endpoint) }}"
+
+admin_password: "{{ lookup('amazon.aws.aws_ssm', gitlab_secrets_path + 'admin_password', endpoint=ssm_endpoint) }}"
+initial_root_password: "{{ lookup('amazon.aws.aws_ssm', gitlab_secrets_path + 'initial_root_password', endpoint=ssm_endpoint) }}"
+github_personal_access_token: "{{ lookup('amazon.aws.aws_ssm', gitlab_secrets_path + 'github_personal_access_token', endpoint=ssm_endpoint) }}"
+github_ansible_repo_id: "{{ lookup('amazon.aws.aws_ssm', gitlab_secrets_path + 'github_ansible_repo_id', endpoint=ssm_endpoint) }}"
+github_packer_repo_id: "{{ lookup('amazon.aws.aws_ssm', gitlab_secrets_path + 'github_packer_repo_id', endpoint=ssm_endpoint) }}"
+github_terraform_repo_id: "{{ lookup('amazon.aws.aws_ssm', gitlab_secrets_path + 'github_terraform_repo_id', endpoint=ssm_endpoint) }}"

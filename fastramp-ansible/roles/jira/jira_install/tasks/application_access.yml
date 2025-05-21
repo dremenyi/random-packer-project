@@ -1,0 +1,18 @@
+- name: AWS - Configure Application Access
+  ansible.builtin.command: >
+    xvfb-run -a --server-args="-screen 0 1920x1080x24" {{ python_binary }} files/aws/chrome_configure_application_access.py --url https://jira1.{{ ansible_domain }}:8443
+     --jirasecretspath {{ jira_secrets_path }} --region {{ aws_region }} --adsecretspath {{ ad_secrets_path }} --endpointurl {{ ssm_endpoint }}
+  args:
+    chdir: "{{ role_path }}"
+  register: selenium_jira_application_result
+  delegate_to: localhost
+  changed_when: selenium_jira_application_result.stdout_lines | select("match", ".*Selenium Jira script completed.*")
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+  delay: 30
+  retries: 1
+  until: selenium_jira_application_result is not failed
+
+- name: Debug selenium_jira_application_result
+  ansible.builtin.debug:
+    var: selenium_jira_application_result.stdout_lines

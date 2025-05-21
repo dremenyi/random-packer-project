@@ -1,0 +1,51 @@
+{
+    "datafeed_id" : "datafeed-failed_login_attempts",
+    "job_id" : "failed_login_attempts",
+    "query_delay" : "74472ms",
+    "indices" : [
+      "filebeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "filter" : [
+          {
+            "bool" : {
+              "should" : [
+                {
+                  "match" : {
+                    "event.dataset" : "system.auth"
+                  }
+                }
+              ],
+              "minimum_should_match" : 1
+            }
+          },
+          {
+            "bool" : {
+              "should" : [
+                {
+                  "exists" : {
+                    "field" : "system.auth.ssh.event"
+                  }
+                }
+              ],
+              "minimum_should_match" : 1
+            }
+          },
+          {
+            "match_phrase" : {
+              "event.type" : "authentication_failure"
+            }
+          }
+        ],
+        "must_not" : [ ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

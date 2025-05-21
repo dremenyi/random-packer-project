@@ -1,0 +1,26 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Stop DSM
+  ansible.builtin.service:
+    name: dsm_s
+    state: stopped
+  become: true
+
+### Disable FIPS mode ###
+- name: Disable FIPS mode
+  ansible.builtin.command: /opt/dsm/dsm_c -action disablefipsmode
+  register: disable_fips
+  become: true
+  changed_when: disable_fips.stdout_lines | select("match", ".*FIPS mode disabled.*")
+
+- name: Start DSM
+  ansible.builtin.service:
+    name: dsm_s
+    state: started
+  become: true
+
+- name: Setup TLS
+  ansible.builtin.include_tasks: setup_tls.yml

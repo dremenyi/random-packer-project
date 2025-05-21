@@ -1,0 +1,17 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    - name: AWS - Execute Selenium Python script to Setup Jira
+      ansible.builtin.command: >
+        xvfb-run -a --server-args="-screen 0 1920x1080x24" {{ python_binary }} files/aws/chrome_setup_jira.py --url https://jira1.{{ ansible_domain }}:8443 --jirasecretspath {{ jira_secrets_path }}
+        --dbhostname {{ db_endpoint }} --email {{ admin_email }} --region {{ aws_region }} --endpointurl {{ ssm_endpoint }} --domain {{ ansible_domain }} --clustered {{ clustered }}
+      args:
+        chdir: "{{ role_path }}"
+      register: selenium_jira_setup_result
+      changed_when: selenium_jira_setup_result.stdout_lines | select("match", ".*Selenium Jira script completed.*")
+      when:
+        - ansible_system_vendor == 'Amazon EC2'
+
+    - name: Debug selenium_jira_setup_result
+      ansible.builtin.debug:
+        var: selenium_jira_setup_result.stdout_lines

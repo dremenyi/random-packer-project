@@ -1,0 +1,13 @@
+- name: Set Enrollment token name Application
+  ansible.builtin.set_fact:
+    group_name: "{{ item }}"
+  when: "item in group_names"
+  loop:
+    - nessus
+
+- name: Set Enrollment token name windows generic
+  ansible.builtin.set_fact:
+    group_name: windows
+  when: "item not in group_names"
+  loop:
+    - nessus

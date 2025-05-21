@@ -1,0 +1,680 @@
+aws_integration:
+  policy_id: "{{ policy_id }}"
+  package:
+    name: aws
+    version: "{{ package_version }}"
+  name: aws-ingest
+  namespace: "{{ item.policy_namespace }}"
+  inputs:
+    billing-aws/metrics:
+      enabled: false
+      streams:
+        aws.billing:
+          enabled: false
+          vars:
+            period: 12h
+            cost_explorer_config.group_by_dimension_keys:
+              - AZ
+              - INSTANCE_TYPE
+              - SERVICE
+              - LINKED_ACCOUNT
+            cost_explorer_config.group_by_tag_keys:
+              - aws:createdBy
+    cloudtrail-aws-s3:
+      enabled: true
+      streams:
+        aws.cloudtrail:
+          enabled: true
+          vars:
+            queue_url: "{{ cloudtrail_event_sqs_url }}"
+            fips_enabled: true
+            tags:
+              - forwarded
+              - aws-cloudtrail
+            preserve_original_event: false
+            cloudtrail_regex: "/CloudTrail/"
+            cloudtrail_digest_regex: "/CloudTrail-Digest/"
+            cloudtrail_insight_regex: "/CloudTrail-Insight/"
+            max_number_of_messages: 5
+    cloudtrail-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.cloudtrail:
+          enabled: false
+          vars:
+            log_streams: []
+            start_position: beginning
+            scan_frequency: 1m
+            api_timeput: 120s
+            api_sleep: 200ms
+            tags:
+              - forwarded
+              - aws-cloudtrail
+            preserve_original_event: false
+    cloudtrail-httpjson:
+      enabled: false
+      streams:
+        aws.cloudtrail:
+          enabled: false
+          vars:
+            url: https://server.example.com:8089
+            ssl: |
+              #certificate_authorities:
+              #  - |
+              #    -----BEGIN CERTIFICATE-----
+              #    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF
+              #    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2
+              #    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB
+              #    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n
+              #    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl
+              #    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t
+              #    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP
+              #    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41
+              #    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O
+              #    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux
+              #    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D
+              #    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw
+              #    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA
+              #    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu
+              #    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0
+              #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
+              #    sxSmbIUfc2SGJGCJD4I=
+              #    -----END CERTIFICATE-----
+            interval: 10s
+            search: search sourcetype=aws:cloudtrail
+            tags:
+              - forwarded
+              - aws-cloudtrail
+            preserve_original_event: false
+    cloudwatch-aws-s3:
+      enabled: false
+      streams:
+        aws.cloudwatch_logs:
+          enabled: false
+          vars:
+            fips_enabled: false
+            tags:
+              - forwarded
+              - aws-cloudwatch-logs
+            preserve_original_event: false
+            max_number_of_messages: 5
+    cloudwatch-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.cloudwatch_logs:
+          enabled: false
+          vars:
+            log_streams: []
+            start_position: beginning
+            scan_frequency: 1m
+            api_timeput: 120s
+            api_sleep: 200ms
+            tags:
+              - forwarded
+              - aws-cloudwatch-logs
+            preserve_original_event: false
+            data_stream.dataset: generic
+    cloudwatch-aws/metrics:
+      enabled: false
+      streams:
+        aws.cloudwatch_metrics:
+          enabled: false
+          vars:
+            period: 300s
+            regions: []
+            metrics: |
+              - namespace: AWS/EC2
+                resource_type: ec2:instance
+                name:
+                  - CPUUtilization
+                  - DiskWriteOps
+                statistic:
+                  - Average
+                  - Maximum
+                # dimensions:
+                # - name: InstanceId
+                    # value: i-123456
+                # tags:
+                  # - key: created-by
+                    # value: foo
+    dynamodb-aws/metrics:
+      enabled: false
+      streams:
+        aws.dynamodb:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    ebs-aws/metrics:
+      enabled: false
+      streams:
+        aws.ebs:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    ec2-aws-s3:
+      enabled: false
+      streams:
+        aws.ec2_logs:
+          enabled: false
+          vars:
+            fips_enabled: false
+            tags:
+              - forwarded
+              - aws-ec2-logs
+            preserve_original_event: false
+            max_number_of_messages: 5
+    ec2-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.ec2_logs:
+          enabled: false
+          vars:
+            log_streams: []
+            start_position: beginning
+            scan_frequency: 1m
+            api_timeput: 120s
+            api_sleep: 200ms
+            tags:
+              - forwarded
+              - aws-ec2-logs
+            preserve_original_event: false
+    ec2-aws/metrics:
+      enabled: false
+      streams:
+        aws.ec2_metrics:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    ecs-aws/metrics:
+      enabled: false
+      streams:
+        aws.ecs_metrics:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    elb-aws-s3:
+      enabled: true
+      streams:
+        aws.elb_logs:
+          enabled: true
+          vars:
+            queue_url: "{{ elb_accesslog_event_sqs_url }}"
+            fips_enabled: true
+            tags:
+              - forwarded
+              - aws-elb-logs
+            preserve_original_event: false
+            max_number_of_messages: 5
+    elb-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.elb_logs:
+          enabled: false
+          vars:
+            log_streams: []
+            start_position: beginning
+            scan_frequency: 1m
+            api_timeput: 120s
+            api_sleep: 200ms
+            tags:
+              - forwarded
+              - aws-elb-logs
+            preserve_original_event: false
+    elb-aws/metrics:
+      enabled: false
+      streams:
+        aws.elb_metrics:
+          enabled: false
+          vars:
+            period: 1m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    lambda-aws/metrics:
+      enabled: false
+      streams:
+        aws.lambda:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    natgateway-aws/metrics:
+      enabled: false
+      streams:
+        aws.natgateway:
+          enabled: false
+          vars:
+            period: 1m
+            regions: []
+    firewall-aws-s3:
+      enabled: false
+      streams:
+        aws.firewall_logs:
+          enabled: false
+          vars:
+            fips_enabled: false
+            tags:
+              - forwarded
+              - aws-firewall-logs
+            preserve_original_event: false
+            max_number_of_messages: 5
+    firewall-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.firewall_logs:
+          enabled: false
+          vars:
+            log_streams: []
+            start_position: beginning
+            scan_frequency: 1m
+            api_timeput: 120s
+            api_sleep: 200ms
+            tags:
+              - forwarded
+              - aws-firewall-logs
+            preserve_original_event: false
+    firewall-aws/metrics:
+      enabled: false
+      streams:
+        aws.firewall_metrics:
+          enabled: false
+          vars:
+            period: 60s
+            regions: []
+            metrics: |
+              - namespace: AWS/NetworkFirewall
+                name:
+                  - DroppedPackets
+                  - PassedPackets
+                  - ReceivedPackets
+                  - Packets
+                statistic:
+                  - Sum
+                # dimensions:
+                # - name: FirewallName
+                    # value: SampleFirewall
+                # tags:
+                  # - key: created-by
+                    # value: sample
+    rds-aws/metrics:
+      enabled: false
+      streams:
+        aws.rds:
+          enabled: false
+          vars:
+            period: 1m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    s3-aws-s3:
+      enabled: true
+      streams:
+        aws.s3access:
+          enabled: true
+          vars:
+            queue_url: "{{ s3_accesslog_event_sqs_url }}"
+            fips_enabled: true
+            tags:
+              - forwarded
+              - aws-s3access
+            preserve_original_event: false
+            max_number_of_messages: 5
+    s3-aws/metrics:
+      enabled: false
+      streams:
+        aws.s3_daily_storage:
+          enabled: false
+          vars:
+            period: 24h
+            regions: []
+        aws.s3_request:
+          enabled: false
+          vars:
+            period: 1m
+            regions: []
+    s3_storage_lens-aws/metrics:
+      enabled: false
+      streams:
+        aws.s3_storage_lens:
+          enabled: false
+          vars:
+            period: 24h
+            regions: []
+    sns-aws/metrics:
+      enabled: false
+      streams:
+        aws.sns:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    sqs-aws/metrics:
+      enabled: false
+      streams:
+        aws.sqs:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+    transitgateway-aws/metrics:
+      enabled: false
+      streams:
+        aws.transitgateway:
+          enabled: false
+          vars:
+            period: 1m
+            regions: []
+    usage-aws/metrics:
+      enabled: false
+      streams:
+        aws.usage:
+          enabled: false
+          vars:
+            period: 1m
+            regions: []
+    vpcflow-aws-s3:
+      enabled: true
+      streams:
+        aws.vpcflow:
+          enabled: true
+          vars:
+            queue_url: "{{ flowlog_event_sqs_url }}"
+            fips_enabled: true
+            tags:
+              - forwarded
+              - aws-vpcflow
+            preserve_original_event: false
+            max_number_of_messages: 5
+    vpcflow-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.vpcflow:
+          enabled: false
+          vars:
+            log_streams: []
+            start_position: beginning
+            scan_frequency: 1m
+            api_timeput: 120s
+            api_sleep: 200ms
+            tags:
+              - forwarded
+              - aws-vpcflow
+            preserve_original_event: false
+    vpn-aws/metrics:
+      enabled: false
+      streams:
+        aws.vpn:
+          enabled: false
+          vars:
+            period: 1m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    waf-aws-s3:
+      enabled: true
+      streams:
+        aws.waf:
+          enabled: true
+          vars:
+            queue_url: "{{ waf_event_sqs_url }}"
+            fips_enabled: true
+            tags:
+              - forwarded
+              - aws-waf
+            preserve_original_event: false
+            max_number_of_messages: 5
+    waf-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.waf:
+          enabled: false
+          vars:
+            log_streams: []
+            start_position: beginning
+            scan_frequency: 1m
+            api_timeput: 120s
+            api_sleep: 200ms
+            tags:
+              - forwarded
+              - aws-waf
+            preserve_original_event: false
+    route53-aws-cloudwatch:
+      enabled: false
+      streams:
+        aws.route53_public_logs:
+          enabled: false
+          vars:
+            start_position: beginning
+            scan_frequency: 1m
+            tags:
+              - forwarded
+              - aws-route53_public-logs
+            preserve_original_event: false
+        aws.route53_resolver_logs:
+          enabled: false
+          vars:
+            start_position: beginning
+            scan_frequency: 1m
+            tags:
+              - forwarded
+              - aws-route53_resolver-logs
+            preserve_original_event: false
+    cloudfront-aws-s3:
+      enabled: false
+      streams:
+        aws.cloudfront_logs:
+          enabled: false
+          vars:
+            fips_enabled: false
+            tags:
+              - forwarded
+              - aws-cloudfront
+            processors: |
+              # - drop_event:
+                # when:
+                  # contains:
+                    # source: "test"
+            preserve_original_event: false
+            max_number_of_messages: 5
+    redshift-aws/metrics:
+      enabled: false
+      streams:
+        aws.redshift:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+    kinesis-aws/metrics:
+      enabled: false
+      streams:
+        aws.kinesis:
+          enabled: false
+          vars:
+            period: 5m
+            regions: []
+            tags_filter: |
+              # - key: "created-by"
+                # value: "foo"
+    securityhub-httpjson:
+      enabled: false
+      streams:
+        aws.securityhub_findings:
+          enabled: false
+          vars:
+            interval: 1h
+            initial_interval: 24h
+            tags:
+              - forwarded
+              - aws_securityhub_findings
+            ssl: |
+              #certificate_authorities:
+              #  - |
+              #    -----BEGIN CERTIFICATE-----
+              #    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF
+              #    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2
+              #    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB
+              #    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n
+              #    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl
+              #    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t
+              #    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP
+              #    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41
+              #    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O
+              #    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux
+              #    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D
+              #    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw
+              #    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA
+              #    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu
+              #    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0
+              #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
+              #    sxSmbIUfc2SGJGCJD4I=
+              #    -----END CERTIFICATE-----
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false
+        aws.securityhub_insights:
+          enabled: false
+          vars:
+            interval: 1m
+            tags:
+              - forwarded
+              - aws_securityhub_insights
+            ssl: |
+              #certificate_authorities:
+              #  - |
+              #    -----BEGIN CERTIFICATE-----
+              #    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF
+              #    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2
+              #    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB
+              #    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n
+              #    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl
+              #    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t
+              #    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP
+              #    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41
+              #    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O
+              #    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux
+              #    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D
+              #    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw
+              #    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA
+              #    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu
+              #    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0
+              #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
+              #    sxSmbIUfc2SGJGCJD4I=
+              #    -----END CERTIFICATE-----
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false
+    inspector-httpjson:
+      enabled: false
+      streams:
+        aws.inspector:
+          enabled: false
+          vars:
+            interval: 1m
+            initial_interval: 24h
+            http_client_timeout: 30s
+            tags:
+              - forwarded
+              - aws-inspector
+            ssl: |
+              #certificate_authorities:
+              #  - |
+              #    -----BEGIN CERTIFICATE-----
+              #    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF
+              #    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2
+              #    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB
+              #    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n
+              #    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl
+              #    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t
+              #    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP
+              #    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41
+              #    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O
+              #    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux
+              #    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D
+              #    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw
+              #    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA
+              #    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu
+              #    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0
+              #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
+              #    sxSmbIUfc2SGJGCJD4I=
+              #    -----END CERTIFICATE-----
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false
+    guardduty-httpjson:
+      enabled: false
+      streams:
+        aws.guardduty:
+          enabled: false
+          vars:
+            interval: 1m
+            initial_interval: 24h
+            http_client_timeout: 30s
+            tags:
+              - forwarded
+              - aws-guardduty
+            ssl: |
+              #certificate_authorities:
+              #  - |
+              #    -----BEGIN CERTIFICATE-----
+              #    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF
+              #    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2
+              #    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB
+              #    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n
+              #    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl
+              #    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t
+              #    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP
+              #    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41
+              #    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O
+              #    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux
+              #    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D
+              #    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw
+              #    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA
+              #    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu
+              #    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0
+              #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
+              #    sxSmbIUfc2SGJGCJD4I=
+              #    -----END CERTIFICATE-----
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false
+    guardduty-aws-s3:
+      enabled: false
+      streams:
+        aws.guardduty:
+          enabled: false
+          vars:
+            collect_s3_logs: false
+            interval: 1m
+            number_of_workers: 5
+            visibility_timeout: 300s
+            api_timeout: 120s
+            max_number_of_messages: 5
+            fips_enabled: false
+            tags:
+              - forwarded
+              - aws-guardduty
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false
+  vars:
+    default_region: ""

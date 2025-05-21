@@ -1,0 +1,4 @@
+---
+root_ca_store: /etc/pki/ca-trust/source/anchors/cacert.pem
+update_ca_handler: rhel update ca trust
+gitlab_repository_installation_script_url: "https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.rpm.sh"

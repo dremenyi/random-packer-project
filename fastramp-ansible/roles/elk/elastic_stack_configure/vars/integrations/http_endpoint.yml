@@ -1,0 +1,25 @@
+http_endpoint_integration:
+  policy_id: "{{ policy_id }}"
+  package:
+    name: http_endpoint
+    version: "{{ package_version }}"
+  name: http_endpoint-ingest
+  description: ""
+  namespace: "{{ item.policy_namespace }}"
+  inputs:
+    http_endpoint-http_endpoint:
+      enabled: true
+      streams:
+        http_endpoint.generic:
+          enabled: true
+          vars:
+            listen_address: 0.0.0.0
+            listen_port: "5514"
+            data_stream.dataset: http_endpoint.generic
+            include_headers: []
+            ssl: |
+              enabled: true
+              certificate: "/etc/elasticsearch/certs/server.cer"
+              key: "/etc/elasticsearch/certs/server_unenc.key"
+            tags:
+              - forwarded

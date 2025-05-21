@@ -1,0 +1,18 @@
+- name: Include anomaly_detectors
+  ansible.builtin.include_vars: anomaly_detectors.yml
+
+- name: Create Anomaly Detection Job
+  ansible.builtin.uri:
+    url: "{{ elastic_api_url }}/_ml/anomaly_detectors/{{ item.job_id }}"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: PUT
+    force_basic_auth: true
+    status_code: 200, 204, 400
+    headers:
+      kbn-xsrf: true
+    body_format: json
+    body: "{{ item.body }}"
+  register: create_ml_job
+  changed_when: create_ml_job == 200
+  loop: "{{ anomaly_detection_jobs }}"

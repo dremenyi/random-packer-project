@@ -1,0 +1,29 @@
+---
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install logstash
+  include_tasks: install.yml
+  when: '"logstash.service" not in ansible_facts.services'
+
+- name: Check for root CA cert
+  ansible.builtin.stat:
+    path: /etc/logstash/certs/cacert.pem
+  register: root_ca_file
+  become: true
+
+- name: Deploy Root CA Cert
+  include_tasks: deploy_root_ca.yml
+  when: not root_ca_file.stat.exists
+
+- name: Check if existing keystore file exists
+  ansible.builtin.stat:
+    path: /etc/logstash/logstash.keystore
+  become: true
+  register: logstash_keystore_file
+
+- name: Configure logstash
+  include_tasks: configure.yml
+  #when: not logstash_keystore_file.stat.exists
+

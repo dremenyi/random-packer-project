@@ -1,0 +1,46 @@
+- name: Create Read-Only account for LDAPS use
+  microsoft.ad.user:
+    name: svc_splunk
+    firstname: Service
+    surname: Splunk
+    password_never_expires: true
+    path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+    password: "{{ svc_splunk_password }}"
+    update_password: when_changed
+  delegate_to: dc1
+  run_once: true
+
+- name: Create SplunkAdmins AD Group
+  microsoft.ad.group:
+    name: "SplunkAdmins"
+    scope: global
+    path: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+  delegate_to: dc1
+  run_once: true
+
+- name: Set default domain list to empty array
+  ansible.builtin.set_fact:
+    domain_dn_list: []
+
+- name: Split domain name to list
+  ansible.builtin.set_fact:
+    domain_name_list: "{{ ansible_domain.split('.') | list }}"
+
+- name: Format domain name list to Distinguished Name list
+  ansible.builtin.set_fact:
+    domain_dn_list: "{{ domain_dn_list + [ 'DC=' ~ item ] }}"
+  loop: "{{ domain_name_list }}"
+
+- name: Join DN list to string
+  ansible.builtin.set_fact:
+    domain_dn: "{{ domain_dn_list | join(',') }}"
+
+- name: Install authentication.conf for admins
+  ansible.builtin.template:
+    src: authentication.conf.j2
+    dest: /opt/splunk/etc/system/local/authentication.conf
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true

@@ -1,0 +1,21 @@
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "{{ root_ca_store }}"
+    mode: "0644"
+  become: true
+  notify: "{{ update_ca_handler }}"
+
+- name: Copy Jira certificate
+  ansible.builtin.copy:
+    content: "{{ jira_cert }}"
+    dest: /tmp/jira_cert.pem
+    mode: "0644"
+  become: true
+
+- name: Copy Jira private key
+  ansible.builtin.copy:
+    content: "{{ jira_cert_key }}"
+    dest: /tmp/jira_cert_key.pem
+    mode: "0400"
+  become: true

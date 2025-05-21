@@ -1,0 +1,12 @@
+---
+jira_api_url: https://jira1.{{ ansible_domain }}:8443/rest/api/2
+jira_user_name: admin
+
+# Note: Atlassian does not provide file hashes for their installer, I simply downloaded the file and calculated the hash with SHA256 algorithm.
+# This means that there's no assurance from the vendor that it's the same file, it simply proves what you use in production is the same file
+# that was used and tested in the lab.
+# https://www.atlassian.com/software/jira/service-management/download/data-center
+jira_download_url: https://product-downloads.atlassian.com/software/jira/downloads/atlassian-servicedesk-5.11.3-x64.bin
+jira_installer_hash: d2a4afb51bdfaf361149a44e285266a0da2d27b3d3ec072d31f4e8ec1c5b5578 # SHA256
+
+python_binary: python3.11

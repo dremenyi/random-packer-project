@@ -1,0 +1,34 @@
+[default]
+remotePath = volume:remote_store/$_index_name
+repFactor = auto
+
+[volume:remote_store]
+storageType = remote
+path = s3://{{ splunk_smartstore_s3 }}
+remote.s3.supports_versioning = false
+remote.s3.sslRootCAPath = /opt/splunk/etc/auth/certs/rootca_bundle.pem
+remote.s3.tsidx_compression = true
+remote.s3.encryption = sse-kms
+remote.s3.cipherSuite = {{ cipher_suite }}
+remote.s3.ecdhCurves = {{ ecdh_curves }}
+remote.s3.endpoint = https://s3-fips.dualstack.{{ aws_region }}.amazonaws.com
+remote.s3.auth_region = {{ aws_region }}
+remote.s3.sslVerifyServerCert = true
+remote.s3.sslAltNameToCheck = s3-fips.dualstack.{{ aws_region }}.amazonaws.com
+remote.s3.kms.key_id = {{ s3_kms_key_id }}
+remote.s3.kms.sslRootCAPath = /opt/splunk/etc/auth/certs/rootca_bundle.pem
+remote.s3.kms.cipherSuite = {{ cipher_suite }}
+remote.s3.kms.ecdhCurves = {{ ecdh_curves }}
+remote.s3.kms.endpoint = https://kms-fips.{{ aws_region }}.amazonaws.com
+remote.s3.kms.auth_region = {{ aws_region }}
+remote.s3.kms.sslVerifyServerCert = true
+remote.s3.kms.sslAltNameToCheck = kms-fips.{{ aws_region }}.amazonaws.com
+
+{% for index in indexes %}
+[{{ index }}]
+homePath = /cache/{{ index }}/db
+coldPath = $SPLUNK_DB/{{ index }}/colddb
+thawedPath = $SPLUNK_DB/{{ index }}/thaweddb
+frozenTimePeriodInSecs = 31104000
+
+{% endfor %}

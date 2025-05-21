@@ -1,0 +1,25 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+# Create globally before looping over projects
+- name: Create Issue Type
+  ansible.builtin.include_tasks: create_issue_type.yml
+  loop: "{{ issuetypes | dict2items }}"
+
+- name: Create Custom Fields
+  ansible.builtin.include_tasks: create_custom_field.yml
+  loop: "{{ customfields | dict2items }}"
+
+# This should loop over each project
+- name: Create Projects
+  ansible.builtin.include_tasks: create_new_project.yml
+  loop: "{{ projects | dict2items }}"
+
+- name: Create Application Role
+  ansible.builtin.include_tasks: create_application_role.yml
+
+- name: Create Project Permission
+  ansible.builtin.include_tasks: create_project_permission.yml
+  loop: "{{ projects | dict2items }}"

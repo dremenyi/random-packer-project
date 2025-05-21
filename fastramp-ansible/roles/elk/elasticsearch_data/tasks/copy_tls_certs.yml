@@ -1,0 +1,46 @@
+- name: Create certs directory
+  ansible.builtin.file:
+    path: /etc/elasticsearch/certs/
+    state: directory
+    owner: elasticsearch
+    group: elasticsearch
+    mode: "0755"
+  become: true
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "{{ root_ca_store }}"
+    mode: "0644"
+  become: true
+  notify: "{{ update_ca_handler }}"
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /etc/elasticsearch/certs/cacert.pem
+    mode: "0644"
+    owner: elasticsearch
+    group: elasticsearch
+    force: true
+  become: true
+
+- name: Copy elastic certificate
+  ansible.builtin.copy:
+    content: "{{ elastic_cert }}"
+    dest: /etc/elasticsearch/certs/server.cer
+    mode: "0644"
+    owner: elasticsearch
+    group: elasticsearch
+    force: true
+  become: true
+
+- name: Copy elastic private key
+  ansible.builtin.copy:
+    content: "{{ elastic_cert_key }}"
+    dest: /etc/elasticsearch/certs/server.key
+    mode: "0400"
+    owner: elasticsearch
+    group: elasticsearch
+    force: true
+  become: true

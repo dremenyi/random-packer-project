@@ -1,0 +1,40 @@
+- name: Download Nessus installer
+  ansible.builtin.get_url:
+    url: "{{ nessus_download_url }}"
+    dest: "/tmp/{{ nessus_filename }}"
+    force: true
+    mode: "0755"
+
+- name: Check Nessus installer file hash
+  ansible.builtin.stat:
+    path: "/tmp/{{ nessus_filename }}"
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: nessus_downloaded_installer_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - nessus_downloaded_installer_file.stat.checksum == nessus_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ nessus_downloaded_installer_file.stat.checksum }}, the expected hash is {{ nessus_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: RHEL - Install Nessus
+  ansible.builtin.yum:
+    name: "/tmp/{{ nessus_filename }}"
+    state: present
+    disable_gpg_check: true
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Install Nessus
+  ansible.builtin.apt:
+    deb: "/tmp/{{ nessus_filename }}"
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Remove Nessus Installer
+  ansible.builtin.file:
+    name: "/tmp/{{ nessus_filename }}"
+    state: absent

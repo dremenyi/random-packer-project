@@ -1,0 +1,19 @@
+[automationcontroller]
+aapcontroller1.{{ ansible_domain }}
+aapcontroller2.{{ ansible_domain }}
+aapcontroller3.{{ ansible_domain }}
+
+[database]
+[all:vars]
+automation_platform_version='2.4'
+minimum_ansible_version='2.14'
+
+pg_host="{{ db_endpoint }}"
+pg_port='5432'
+pg_database='aap'
+pg_username='aap'
+pg_sslmode='prefer'
+
+web_server_ssl_cert=/tmp/aapinst/aapcontroller.cert
+web_server_ssl_key=/tmp/aapinst/aapcontroller.key
+custom_ca_cert=/tmp/aapinst/rootca.crt

@@ -1,0 +1,8 @@
+Import-Module -Name GroupPolicy
+
+# Server Policies
+New-GPLink -Name '{{ server_xml.results[7].matches[0].values() | first }}' -Target 'OU=Workspaces,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+New-GPLink -Name '{{ server_ntlm_xml.results[7].matches[0].values() | first }}' -Target 'OU=Workspaces,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% for base in base_gpo_xml_list %}
+New-GPLink -Name '{{ base.GPODisplayName }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}

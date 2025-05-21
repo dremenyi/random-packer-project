@@ -1,0 +1,63 @@
+- name: Always do X
+  block:
+  - name: Prune everything
+    community.docker.docker_prune:
+      containers: true
+      images: true
+      networks: true
+      volumes: true
+      builder_cache: true
+
+  - name: Ensure bridge network exists
+    community.docker.docker_network:
+      name: builderbridge
+      
+  - name: Create temporary folder
+    ansible.builtin.tempfile:
+      state: directory
+      suffix: temp
+    register: build_dir
+
+  - name: Copy Build Files
+    ansible.builtin.copy:
+      src: build
+      dest: "{{ build_dir.path }}"
+
+  - name: Copy RootCA cert
+    ansible.builtin.copy:
+      content: "{{ rootca_cert }}"
+      dest: "{{ build_dir.path }}/build/ca.crt"
+      force: true
+      mode: "0644"
+
+  - name: Template Dockerfile
+    ansible.builtin.template:
+      src: Dockerfile.j2
+      dest: "{{ build_dir.path }}/build/Dockerfile"
+      force: true
+      mode: '0600'
+
+  - name: Template kerberos.conf
+    ansible.builtin.template:
+      src: kerberos.conf.j2
+      dest: "{{ build_dir.path }}/build/kerberos.conf"
+      force: true
+      mode: '0600'
+
+  - name: Load image from archive and push to a private registry
+    community.docker.docker_image:
+      name: "{{ ecr_repository_url }}"
+      tag: latest
+      push: true
+      build:
+        path: "{{ build_dir.path }}/build"
+        nocache: true
+        network: builderbridge
+      source: build
+      state: present
+      force_source: true
+  always:
+    - name: Cleanup Temp Dir
+      ansible.builtin.file:
+        path: "{{ build_dir.path }}"
+        state: absent

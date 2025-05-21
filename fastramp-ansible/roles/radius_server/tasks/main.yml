@@ -1,0 +1,70 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Install Windows Features
+  ansible.windows.win_feature:
+    name:
+      - NPAS
+    state: present
+    include_sub_features: true
+    include_management_tools: true
+  register: win_feature
+
+- name: Register NPS with Active Directory
+  ansible.windows.win_powershell:
+    script: |
+      netsh nps add registeredserver
+    error_action: stop
+  register: register_nps
+  changed_when: register_nps.output | select("match", ".*Ok.*")
+
+- name: Debug register_nps
+  ansible.builtin.debug:
+    var: register_nps
+
+- name: Add RADIUS Client AD Connector
+  ansible.windows.win_powershell:
+    script: |
+      $RadiusClientAddresses = Get-NpsRadiusClient | Select-Object -ExpandProperty Address
+      if ($RadiusClientAddresses -contains "{{ item }}")
+      {
+        $Ansible.changed = $false
+      }
+      else
+      {
+        New-NpsRadiusClient -Address "{{ item }}" -Name "AD Connector {{ connector_ip_count + 1 }}" -SharedSecret "{{ radius_shared_secret }}" -Verbose
+        $Ansible.changed = $true
+      }
+    error_action: stop
+  register: add_radius_client
+  no_log: false
+  loop: "{{ connector_ips }}"
+  loop_control:
+    index_var: connector_ip_count
+
+- name: Debug add_radius_client
+  ansible.builtin.debug:
+    var: add_radius_client
+
+# Note: This modifies the "Connections to other access servers" policy from "Deny" to "Grant" and also allows PAP protocol.
+- name: Create blanket allow all NPS Policy
+  ansible.windows.win_powershell:
+    script: >
+      netsh nps add np name = "Connections to other access servers" state = "enable" processingorder = "2" policysource = "0" conditionid = "0x1006"
+      conditiondata = "0 00:00-24:00; 1 00:00-24:00; 2 00:00-24:00; 3 00:00-24:00; 4 00:00-24:00; 5 00:00-24:00; 6 00:00-24:00" profileid = "0x100f"
+      profiledata = "TRUE" profileid = "0x1009" profiledata = "0x1" profiledata = "0x2" profiledata = "0x3" profiledata = "0x9" profiledata = "0x4"
+      profiledata = "0xa" profileid = "0x7" profiledata = "0x1" profileid = "0x6" profiledata = "0x2"
+    error_action: stop
+  register: allow_all_nps_np
+  changed_when: allow_all_nps_np.output | select("match", ".*Ok.*")
+
+- name: Debug allow_all_nps_np
+  ansible.builtin.debug:
+    var: allow_all_nps_np
+
+- name: Restart NPS Service
+  ansible.windows.win_service:
+    name: IAS
+    state: restarted

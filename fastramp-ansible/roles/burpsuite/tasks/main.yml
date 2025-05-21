@@ -1,0 +1,27 @@
+---
+- name: Load AWS vars
+  include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Get stats of Burpsuite binary
+  ansible.builtin.stat:
+    path: /opt/BurpSuitePro/BurpSuitePro
+  register: burp_binary
+  become: true
+
+- name: Install GUI
+  include_tasks: install_gui.yml
+
+- name: Install burpsuite
+  include_tasks: install_burpsuite.yml
+  when: not burp_binary.stat.exists
+
+- name: "Replace the content of GnuTLS config file for xRDP initialization due to STIG"
+  ansible.builtin.copy:
+    dest: /etc/crypto-policies/back-ends/gnutls.config
+    content: "{{ burpsuite_replace_gnutls }}"
+    force: true
+    owner: root
+    group: root
+    mode: '0644'
+  become: true

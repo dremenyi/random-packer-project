@@ -1,0 +1,5 @@
+manager_url: "https://dsm.{{ ansible_domain }}:4119/"
+download_url: "{{ manager_url }}software/agent/Windows/x86_64/agent.msi"
+# Activation through ALB not supported in FIPS mode
+activation_url: "dsm://dsm1.{{ ansible_domain }}:4120"
+policy_name: Windows Server

@@ -1,0 +1,7 @@
+- name: Create API Token from Tower
+  ansible.tower.tower_token:
+    scope: "write"
+    state: present
+    tower_host: "{{ tower_api_url }}"
+    tower_username: admin
+    tower_password: "{{ tower_password }}"

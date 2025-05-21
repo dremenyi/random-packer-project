@@ -1,0 +1,14 @@
+---
+tower_package_name: 'ansible-tower'
+tower_package_version: '3.8.6'
+tower_package_release: '2'
+
+automationhub_package_name: 'automation-hub'
+automationhub_package_version: '4.2.8'
+
+admin_password: '{{ tower_admin }}'
+ansible_user: svc_ansible
+ansible_password: '{{ svc_ansible_password }}'
+pg_password: '{{ db_password }}'
+ansible_ssh_pass: '{{ svc_ansible_password }}'
+ansible_become_pass: '{{ svc_ansible_password }}'

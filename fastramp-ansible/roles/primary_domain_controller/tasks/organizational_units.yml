@@ -1,0 +1,56 @@
+# Note: The module does not recursively create OUs, so Top Level OUs should be created first.
+- name: Create Top Level OUs
+  microsoft.ad.ou:
+    name: "{{ item }}"
+    path: "{{ dom_disname }}"
+    state: present
+    protect_from_deletion: true
+  loop: "{{ toplvl_ous }}"
+
+- name: Create Business Unit OUs
+  microsoft.ad.ou:
+    name: "{{ item[0] }}"
+    path: "OU={{ item[1] }},{{ dom_disname }}"
+    state: present
+    protect_from_deletion: true
+  loop: "{{ business_units | product(toplvl_ous) | list }}"
+
+- name: Create Users OU
+  microsoft.ad.ou:
+    name: "{{ item[0] }}"
+    path: "OU={{ item[1] }},OU=All Users,{{ dom_disname }}"
+    state: present
+    protect_from_deletion: true
+  loop: "{{ user_ous | product(business_units) | list }}"
+
+- name: Create Servers OU
+  microsoft.ad.ou:
+    name: "{{ item[0] }}"
+    path: "OU={{ item[1] }},OU=Servers,{{ dom_disname }}"
+    state: present
+    protect_from_deletion: true
+  loop: "{{ server_ous | product(business_units) | list }}"
+
+- name: Populate OS Production SubOUs under Servers Environment
+  microsoft.ad.ou:
+    name: "{{ item[0] }}"
+    path: "OU=Production,OU={{ item[1] }},OU=Servers,{{ dom_disname }}"
+    state: present
+    protect_from_deletion: true
+  loop: "{{ sub_ous | product(business_units) | list }}"
+
+- name: Populate OS Development SubOUs under Servers Environment
+  microsoft.ad.ou:
+    name: "{{ item[0] }}"
+    path: "OU=Development,OU={{ item[1] }},OU=Servers,{{ dom_disname }}"
+    state: present
+    protect_from_deletion: true
+  loop: "{{ sub_ous | product(business_units) | list }}"
+
+- name: Populate OS Staging SubOUs under Servers Environment
+  microsoft.ad.ou:
+    name: "{{ item[0] }}"
+    path: "OU=Staging,OU={{ item[1] }},OU=Servers,{{ dom_disname }}"
+    state: present
+    protect_from_deletion: true
+  loop: "{{ sub_ous | product(business_units) | list }}"

@@ -1,0 +1,55 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    - name: Get Snapshot Repository
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_snapshot"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: GET
+        force_basic_auth: true
+        status_code: 200
+      register: get_snapshot_repo
+      changed_when: false
+
+    - name: Create S3 Backup Repository
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_snapshot/s3_backup"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: POST
+        force_basic_auth: true
+        status_code: 200, 409
+        body_format: json
+        body:
+          type: s3
+          settings:
+            bucket: "{{ s3_backup_folder_id }}"
+            server_side_encryption: true
+            endpoint: "s3-fips.dualstack.{{ aws_region }}.amazonaws.com"
+            base_path: elastic
+      register: create_s3_repository_backup
+      changed_when: create_s3_repository_backup.status == 200
+      when: get_snapshot_repo.json | length == 0
+
+    - name: Create S3 Backup Snapshot Policy
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_slm/policy/daily-snapshots"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: PUT
+        force_basic_auth: true
+        status_code: 200, 409
+        body_format: json
+        body:
+          schedule: 0 30 1 * * ?
+          name: "<daily-snap-{now/d}>"
+          repository: s3_backup
+          config:
+            include_global_state: true
+          retention:
+            expire_after: 365d
+            max_count: 30
+      register: create_s3_snapshot_backup
+      changed_when: create_s3_snapshot_backup.status == 200
+      when: get_snapshot_repo.json | length == 0

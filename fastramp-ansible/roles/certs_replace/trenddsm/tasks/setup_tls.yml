@@ -1,0 +1,188 @@
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /etc/pki/ca-trust/source/anchors/cacert.pem
+    mode: '0644'
+    force: true
+  become: true
+  notify: Update CA Trust
+
+# Flush handlers to force CA trust update
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+### Import ALB certificate into keystore for Web SSL ###
+- name: Create tempfile for private key
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .key
+  register: dsm_pkey_tempfile
+
+- name: Create tempfile for cert
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .cer
+  register: dsm_cer_tempfile
+
+- name: Copy certificate
+  ansible.builtin.copy:
+    content: "{{ dsm_cert }}"
+    dest: "{{ dsm_cer_tempfile.path }}"
+    mode: '0644'
+    force: true
+
+- name: Copy private key
+  ansible.builtin.copy:
+    content: "{{ dsm_cert_key }}"
+    dest: "{{ dsm_pkey_tempfile.path }}"
+    mode: '0400'
+    force: true
+
+- name: Create tempfile for PKCS
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .p12
+  register: dsm_p12_tempfile
+
+- name: Generate PKCS#12 file
+  community.crypto.openssl_pkcs12:
+    action: export
+    path: "{{ dsm_p12_tempfile.path }}"
+    friendly_name: tomcat
+    privatekey_path: "{{ dsm_pkey_tempfile.path }}"
+    certificate_path: "{{ dsm_cer_tempfile.path }}"
+    passphrase: changeit
+    force: true
+    state: present
+    mode: '0400'
+  become: true
+
+- name: Ensure tmp PKCS12 does not exist
+  ansible.builtin.file:
+    path: /tmp/.keystore
+    state: absent
+  become: true
+
+- name: Generate PKCS12
+  ansible.builtin.command: >
+    /opt/dsm/jre/bin/keytool -importkeystore -destkeystore /tmp/.keystore -srckeystore {{ dsm_p12_tempfile.path }}
+     -srcstoretype pkcs12 -alias tomcat -srcstorepass changeit -deststorepass changeit -deststoretype pkcs12
+  become: true
+  register: generate_jks
+  changed_when: generate_jks.stderr_lines | select("match", ".*Importing keystore.*") # Appears to normally output to stderr
+
+- name: Add RootCA to PKCS12
+  ansible.builtin.command: >
+    /opt/dsm/jre/bin/keytool -import -alias root -keystore /tmp/.keystore -file /etc/pki/ca-trust/source/anchors/cacert.pem
+     -srcstorepass changeit -deststorepass changeit -storetype pkcs12 -trustcacerts -noprompt
+  become: true
+  register: add_rootca_jks
+  changed_when: add_rootca_jks.stderr_lines | select("match", ".*Certificate was added to keystore.*")
+
+- name: Copy PKCS12 to dsm directory
+  ansible.builtin.copy:
+    src: /tmp/.keystore
+    dest: /opt/dsm/.keystore
+    mode: '0644'
+    force: true
+    remote_src: true
+  become: true
+
+- name: Update keystore password
+  ansible.builtin.lineinfile:
+    path: /opt/dsm/configuration.properties
+    line: keystorePass=changeit
+    regexp: "^keystorePass="
+    state: present
+  become: true
+
+- name: Delete root CA from default JRE
+  ansible.builtin.command:
+    cmd: >
+      /opt/dsm/jre/bin/keytool -delete -alias root -keystore /opt/dsm/jre/lib/security/cacerts -storepass changeit -v
+  become: true
+  register: delete_jre_rootca
+  changed_when: delete_jre_rootca.stderr_lines | select("match", ".*Storing /opt/dsm/jre/lib/security/cacerts.*")
+  ignore_errors: true # Adding ignore as the alias can already exist
+
+- name: Delete tomcat from default JRE
+  ansible.builtin.command:
+    cmd: >
+      /opt/dsm/jre/bin/keytool -delete -alias tomcat -keystore /opt/dsm/jre/lib/security/cacerts -storepass changeit -v
+  become: true
+  register: delete_jre_cert
+  changed_when: delete_jre_cert.stderr_lines | select("match", ".*Storing /opt/dsm/jre/lib/security/cacerts.*")
+  ignore_errors: true # Adding ignore as the alias can already exist
+
+- name: Import RootCA to JRE keystore
+  ansible.builtin.command:
+    cmd: >
+      /opt/dsm/jre/bin/keytool -import -alias root -trustcacerts -file /etc/pki/ca-trust/source/anchors/cacert.pem -keystore /opt/dsm/jre/lib/security/cacerts
+       -storepass changeit -noprompt
+  become: true
+  register: import_jre_rootca
+  changed_when: import_jre_rootca.stderr_lines | select("match", ".*Certificate was added to keystore.*")
+  ignore_errors: true # Adding ignore as the alias can already exist
+
+- name: Import dsm cert to JRE keystore
+  ansible.builtin.command:
+    cmd: >
+      /opt/dsm/jre/bin/keytool -import -alias tomcat -trustcacerts -file {{ dsm_cer_tempfile.path }} -keystore /opt/dsm/jre/lib/security/cacerts
+       -storepass changeit -noprompt
+  become: true
+  register: import_jre_cert
+  changed_when: import_jre_cert.stderr_lines | select("match", ".*Certificate was added to keystore.*")
+  ignore_errors: true # Adding ignore as the alias can already exist
+
+- name: Restart DSM
+  ansible.builtin.service:
+    name: dsm_s
+    state: restarted
+  become: true
+
+- name: Pause
+  ansible.builtin.pause:
+    seconds: 60
+
+- name: Stop DSM
+  ansible.builtin.service:
+    name: dsm_s
+    state: stopped
+  become: true
+
+### Enable FIPS mode ###
+- name: Enable FIPS mode
+  ansible.builtin.command: /opt/dsm/dsm_c -action enablefipsmode
+  register: enable_fips
+  become: true
+  changed_when: enable_fips.stdout_lines | select("match", ".*FIPS mode enabled.*")
+
+- name: Debug enable_fips
+  ansible.builtin.debug:
+    var: enable_fips
+
+- name: Reload systemctl
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Start DSM
+  ansible.builtin.service:
+    name: dsm_s
+    state: started
+  become: true
+
+- name: Remove dsm pkey Tempfile
+  ansible.builtin.file:
+    path: "{{ dsm_pkey_tempfile.path }}"
+    state: absent
+
+- name: Remove dsm cer Tempfile
+  ansible.builtin.file:
+    path: "{{ dsm_cer_tempfile.path }}"
+    state: absent
+
+- name: Remove dsm p12 Tempfile
+  ansible.builtin.file:
+    path: "{{ dsm_p12_tempfile.path }}"
+    state: absent

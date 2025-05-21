@@ -1,0 +1,41 @@
+---
+
+- name: Check for Python3.11
+  ansible.builtin.stat:
+    path: /usr/bin/python3.11
+  register: python_binary
+
+- name: RHEL - Install Python 3.11 and related packages
+  ansible.builtin.package:
+    name:
+      - python3.11
+      - python3.11-pip
+      - python3.11-setuptools
+      - python3.11-libs
+    state: present
+  become: true
+  when:
+    - ansible_facts['distribution'] == 'RedHat'
+    - ansible_facts['distribution_major_version'] == '8'
+
+- name: Add deadsnakes repository
+  ansible.builtin.apt_repository:
+    repo: ppa:deadsnakes/ppa
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Ubuntu - Install Python 3.11 and related packages
+  ansible.builtin.package:
+    name:
+      - python3.11
+      - python3.11-dev
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: AL2 - Install Python3.11
+  ansible.builtin.include_tasks: install_python_al2.yml
+  when:
+    - ansible_facts['distribution'] == 'Amazon'
+    - not python_binary.stat.exists

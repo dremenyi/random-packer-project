@@ -1,0 +1,25 @@
+- name: Create certs directory
+  ansible.builtin.file:
+    path: /etc/kibana/certs/
+    state: directory
+    owner: "kibana"
+    group: "kibana"
+  become: true
+
+- name: Copy kibana certificate
+  ansible.builtin.copy:
+    content: "{{ server_cert }}"
+    dest: "/etc/kibana/certs/server.cer"
+    owner: "kibana"
+    group: "kibana"
+    mode: 0644
+  become: true
+
+- name: Copy kibana private key
+  ansible.builtin.copy:
+    content: "{{ server_private_key }}"
+    dest: "/etc/kibana/certs/server.key"
+    owner: "kibana"
+    group: "kibana"
+    mode: 0400
+  become: true

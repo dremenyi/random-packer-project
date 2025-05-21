@@ -1,0 +1,19 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Check if Elastic Agent service exists
+  ansible.windows.win_service_info:
+    name: Elastic Agent
+  register: elastic_agent_info
+
+- name: Elastic Agent Deployment
+  ansible.builtin.include_tasks: install.yml
+  when: not elastic_agent_info.exists
+
+- name: Start Elastic Agent service if not running
+  ansible.windows.win_service:
+    name: Elastic Agent
+    state: started
+    start_mode: auto

@@ -1,0 +1,32 @@
+- name: Remove application pkey Tempfile
+  ansible.builtin.file:
+    path: "{{ application_pkey_tempfile.path }}"
+    state: absent
+
+- name: Remove application csr Tempfile
+  ansible.builtin.file:
+    path: "{{ application_csr_tempfile.path }}"
+    state: absent
+
+- name: Remove application cer Tempfile
+  ansible.builtin.file:
+    path: "{{ application_cer_tempfile.path }}"
+    state: absent
+
+- name: Remove CA csr Tempfile
+  ansible.windows.win_file:
+    path: "{{ win_tempfile_csr.path }}"
+    state: absent
+  delegate_to: ca1
+
+- name: Remove CA cer Tempfile
+  ansible.windows.win_file:
+    path: "{{ win_tempfile_cer.path }}"
+    state: absent
+  delegate_to: ca1
+
+- name: Remove application pkey unencrypted Tempfile
+  ansible.builtin.file:
+    path: "{{ application_pkey_unenc_tempfile.path }}"
+    state: absent
+  when: create_unencrypted

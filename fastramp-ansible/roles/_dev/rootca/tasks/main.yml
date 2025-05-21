@@ -1,0 +1,5 @@
+- name: Create Root CA
+  include_tasks: create_root_ca.yml
+
+- name: Generate Cert
+  include_tasks: gen_server_cert.yml

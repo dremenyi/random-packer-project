@@ -1,0 +1,195 @@
+- name: Set AWS Connector
+  ansible.builtin.uri:
+    url: "{{ dsm_api_url }}/awsconnectors"
+    method: POST
+    body_format: json
+    status_code: 200, 400
+    headers:
+      api-secret-key: "{{ dsm_api_key }}"
+      api-version: "v1"
+    body:
+      displayName: Default
+      useInstanceRole: true
+    timeout: 180
+  register: set_aws_connector
+  no_log: true
+  changed_when: set_aws_connector.status == 200
+
+# https://automation.deepsecurity.trendmicro.com/article/20_0/api-reference/tag/AWS-Connectors#operation/createAWSConnector
+# 200 = Successful operation
+# 400 (not documented) = The AWS Account already exists
+# 403 = Not authorized to create AWS Connectors
+- name: Debug set_aws_connector
+  ansible.builtin.debug:
+    var: set_aws_connector.json
+
+# https://automation.deepsecurity.trendmicro.com/article/20_0/api-reference/tag/Policies#operation/searchPolicies
+# 200 = Successful Operation
+# 400 (not documented) = Policy Not Found
+# 403 = Not authorized to view policies
+- name: Search Linux Server policy
+  ansible.builtin.uri:
+    url: "{{ dsm_api_url }}/policies/search"
+    method: POST
+    body_format: json
+    status_code: 200
+    headers:
+      api-secret-key: "{{ dsm_api_key }}"
+      api-version: "v1"
+    body:
+      searchCriteria:
+        fieldName: name
+        stringTest: equal
+        stringValue: Linux Server
+    timeout: 180
+  register: linux_server_policy
+  no_log: true
+  changed_when: false
+
+- name: Search Windows Server policy
+  ansible.builtin.uri:
+    url: "{{ dsm_api_url }}/policies/search"
+    method: POST
+    body_format: json
+    status_code: 200, 400
+    headers:
+      api-secret-key: "{{ dsm_api_key }}"
+      api-version: "v1"
+    body:
+      searchCriteria:
+        fieldName: name
+        stringTest: equal
+        stringValue: Windows Server
+    timeout: 180
+  register: windows_server_policy
+  no_log: true
+  changed_when: false
+
+# https://automation.deepsecty.trendmicro.com/article/20_0/api-reference/tag/Policies#operation/modifyPolicy
+# 200 = Successful operation
+# 403 = Not authorized to modify policies or the requested modification is not permitted
+# 404 = The policy does not exist
+- name: Disable firewall module in policy
+  ansible.builtin.uri:
+    url: "{{ dsm_api_url }}/policies/{{ item }}"
+    method: POST
+    body_format: json
+    status_code: 200, 400
+    headers:
+      api-secret-key: "{{ dsm_api_key }}"
+      api-version: "v1"
+    body:
+      firewall:
+        state: "off"
+    timeout: 180
+  register: disable_firewall
+  no_log: true
+  changed_when: disable_firewall.status == 200
+  loop:
+    - "{{ linux_server_policy.json['policies'][0]['ID'] }}"
+    - "{{ windows_server_policy.json['policies'][0]['ID'] }}"
+
+# https://automation.deepsecurity.trendmicro.com/article/20_0/api-reference/tag/Scheduled-Tasks#operation/createScheduledTask
+# 200 = Successful operation
+# 403 = Not authorized to create scheduled task
+- name: Create Monthly Scan Computers for Recommendations Scheduled Task
+  ansible.builtin.uri:
+    url: "{{ dsm_api_url }}/scheduledtasks"
+    method: POST
+    body_format: json
+    status_code: 200, 400
+    headers:
+      api-secret-key: "{{ dsm_api_key }}"
+      api-version: "v1"
+    body:
+      name: Monthly Scan Computers for Recommendations
+      enabled: true
+      scheduleDetails:
+        monthlyScheduleParameters:
+          frequencyType: "last-day-of-month"
+          months:
+            [
+              "january",
+              "feburary",
+              "march",
+              "april",
+              "may",
+              "june",
+              "july",
+              "august",
+              "september",
+              "october",
+              "november",
+              "december",
+            ]
+          startTime: 0
+        timeZone: "UTC"
+        recurrenceType: "monthly"
+      type: "scan-for-recommendations"
+      scanForRecommendationsTaskParameters:
+        type: "all-computers"
+    timeout: 180
+  register: scan_recommendations
+  no_log: true
+  changed_when: scan_recommendations.status == 200
+
+- name: Debug scan_recommendations
+  ansible.builtin.debug:
+    var: scan_recommendations.json
+
+# https://automation.deepsecurity.trendmicro.com/article/20_0/api-reference/tag/Policies#operation/searchPolicies
+# 200 = Successful Operation
+# 400 (not documented) = Policy Not Found
+# 403 = Not authorized to view policies
+- name: Search Base policy
+  ansible.builtin.uri:
+    url: "{{ dsm_api_url }}/policies/search"
+    method: POST
+    body_format: json
+    status_code: 200
+    headers:
+      api-secret-key: "{{ dsm_api_key }}"
+      api-version: "v1"
+    body:
+      searchCriteria:
+        fieldName: name
+        stringTest: equal
+        stringValue: Base Policy
+    timeout: 180
+  register: base_policy
+  no_log: true
+  changed_when: false
+
+- name: Modify Base policy Syslog Id
+  ansible.builtin.uri:
+    url: "{{ dsm_api_url }}/policies/{{ base_policy.json['policies'][0]['ID'] }}"
+    method: POST
+    body_format: json
+    status_code: 200
+    headers:
+      api-secret-key: "{{ dsm_api_key }}"
+      api-version: "v1"
+    timeout: 180
+    body:
+      policySettings:
+        activityMonitoringSettingSyslogConfigId:
+          value: 1
+        antiMalwareSettingSyslogConfigId:
+          value: 1
+        applicationControlSettingSyslogConfigId:
+          value: 1
+        firewallSettingSyslogConfigId:
+          value: 1
+        integrityMonitoringSettingSyslogConfigId:
+          value: 1
+        logInspectionSettingSyslogConfigId:
+          value: 1
+        webReputationSettingSyslogConfigId:
+          value: 1
+  register: modify_base_policy
+  no_log: true
+  changed_when: false
+
+- name: Debug modify_base_policy
+  ansible.builtin.debug:
+    var: modify_base_policy

@@ -1,0 +1,23 @@
+- name: Create Read-Only account for LDAPS use
+  microsoft.ad.user:
+    name: svc_aap
+    firstname: Service
+    surname: AnsibleAutomationPlatform
+    password_never_expires: true
+    path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+    password: "{{ svc_aap_password }}"
+    update_password: when_changed
+  delegate_to: dc1
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['ansible1']['svc_ansible_da_password'] }}"
+
+- name: Create AAPAdmins AD Group
+  microsoft.ad.group:
+    name: AAPAdmins
+    scope: global
+    path: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+  delegate_to: dc1
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['ansible1']['svc_ansible_da_password'] }}"

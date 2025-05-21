@@ -1,0 +1,60 @@
+---
+jira_api_url: https://jira1.{{ ansible_domain }}:8443/rest/api/2
+jira_user_name: admin
+
+### Global Vars ###
+# Note: These are created first
+issuetypes:
+  Access:
+    description: Access requests or terminations
+    type: standard
+    avatarid: 10308
+  Change:
+    description: Change requests
+    type: standard
+    avatarid: 10310
+  Problem:
+    description: Track underlying causes of incidents
+    type: standard
+    avatarid: 10308
+  Improvement:
+    description: Improvement activities for an existing process or system
+    type: standard
+    avatarid: 10310
+
+customfields:
+  RequestedRole:
+    id: requestedrole
+    name: Requested Role
+    description: What type of access does the requested user need?
+    type: "com.atlassian.jira.plugin.system.customfieldtypes:textfield"
+  RequestedUser:
+    id: requesteduser
+    name: Name of Requested User
+    description: The first and last name of the requested user.
+    type: "com.atlassian.jira.plugin.system.customfieldtypes:textfield"
+  RequestType:
+    id: requesttype
+    name: Request Type
+    description: Type of request
+    type: "com.atlassian.jira.plugin.system.customfieldtypes:select"
+  SIA_SCA:
+    id: siasca
+    name: SIA/SCA Completed
+    description: "Security Impact Analysis / Significant Change Analysis must be completed for each change request."
+    type: "com.atlassian.jira.plugin.system.customfieldtypes:select"
+
+# Note: The "issue_types" value must match the "issuetypes" key above
+projects:
+  CA:
+    name: Changes / Access
+    description: "Change and Access Requests"
+    issue_types:
+      - Change
+      - Access
+  CMS:
+    name: Cloud Managed Services
+    description: "Cloud Managed Services Work Requests"
+    issue_types:
+      - Problem
+      - Improvement

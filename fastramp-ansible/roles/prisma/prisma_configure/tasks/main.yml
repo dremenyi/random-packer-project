@@ -1,0 +1,10 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+# Create Default Admin
+# Set License
+# Set TLS Certificate
+# Get ECS Task Definition
+# Configure LDAP
+# Map PrismaAdmins to Administrators

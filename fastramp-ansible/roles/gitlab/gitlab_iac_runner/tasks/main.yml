@@ -1,0 +1,56 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+- name: Check if GitLab Runner is already installed.
+  ansible.builtin.stat:
+    path: /usr/bin/gitlab-runner
+  register: gitlab_runner_file
+
+- name: Install Gitlab
+  ansible.builtin.include_tasks: install_gitlab.yml
+  when: not gitlab_runner_file.stat.exists
+
+- name: Install Hashicorp Tools
+  ansible.builtin.include_tasks: install_hashicorp_tools.yml
+
+- name: Install ansible-core
+  ansible.builtin.include_tasks: install_ansible_core.yml
+
+- name: Copy TLS Certs
+  ansible.builtin.include_tasks: copy_tls_certs.yml
+
+- name: Flush Handlers
+  ansible.builtin.meta: flush_handlers
+
+# File contents will contain the domain name when registered
+- name: Check for existing runner configuration
+  ansible.builtin.command:
+    cmd: "grep {{ ansible_domain }} /etc/gitlab-runner/config.toml"
+  register: config_toml
+  become: true
+  changed_when: false
+  failed_when: false
+
+- name: Register Gitlab Runner
+  ansible.builtin.include_tasks: register_gitlab_runner.yml
+  when: config_toml.stdout_lines | length == 0
+
+- name: Set git config perms
+  ansible.builtin.file:
+    path: /etc/gitconfig
+    mode: o+r
+    state: file
+  become: true

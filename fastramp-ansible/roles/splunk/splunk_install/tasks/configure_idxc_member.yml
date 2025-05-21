@@ -1,0 +1,83 @@
+- name: Configure splunktcp-ssl inputs.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/inputs.conf
+    section: splunktcp-ssl:9998
+    option: disabled
+    value: "false"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Configure SSL inputs.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/inputs.conf
+    section: SSL
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "requireClientCert", value: "false" }
+    - { option: "sslVersions", value: "tls1.2" }
+    - { option: "cipherSuite", value: "{{ cipher_suite }}" }
+    - { option: "ecdhCurves", value: "{{ ecdh_curves }}" }
+    - { option: "serverCert", value: "/opt/splunk/etc/auth/certs/server_unenc.pem" }
+
+- name: Configure Replication settings server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: replication_port-ssl://8080
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "disabled", value: "false" }
+    - { option: "sslVersions", value: "tls1.2" }
+    - { option: "serverCert", value: "/opt/splunk/etc/auth/certs/server.pem" }
+
+- name: Configure sslPassword Replication settings server.conf file
+  community.general.ini_file:
+    path: "/opt/splunk/etc/system/local/server.conf"
+    section: replication_port-ssl://8080
+    option: sslPassword
+    value: "{{ ssl_password }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  no_log: true
+  notify: restart splunk
+
+- name: Configure Clustering settings server.conf file
+  community.general.ini_file:
+    path: "/opt/splunk/etc/system/local/server.conf"
+    section: clustering
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "manager_uri", value: "{{ splunk_uri_cm }}" }
+    - { option: "mode", value: "peer" }
+    - { option: "cluster_label", value: "idxclusterSSL" }
+
+- name: Configure pass4symmKey server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: clustering
+    option: pass4SymmKey
+    value: "{{ pass_4_symm_key }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  no_log: true
+  notify: restart splunk

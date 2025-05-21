@@ -1,0 +1,15 @@
+- name: Check for existing /opt/splunk/etc/passwd
+  ansible.builtin.stat:
+    path: /opt/splunk/etc/passwd
+  register: splunk_etc_passwd
+  become: true
+
+- name: Create user-seed.conf file with splunk_admin_username and splunk_admin_password
+  ansible.builtin.template:
+    src: user-seed.conf.j2
+    dest: /opt/splunk/etc/system/local/user-seed.conf
+    owner: splunk
+    group: splunk
+    mode: "0644"
+  become: true
+  when: not splunk_etc_passwd.stat.exists

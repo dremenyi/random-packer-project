@@ -1,0 +1,18 @@
+---
+
+- name: reload systemctl daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: rhel update ca trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true
+
+- name: ubuntu update ca trust
+  ansible.builtin.command: update-ca-certificates
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true

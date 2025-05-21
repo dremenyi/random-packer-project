@@ -1,0 +1,62 @@
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Create temporary Tower Install Directory
+  ansible.builtin.file:
+    path: /tmp/twrinst/group_vars
+    state: directory
+    mode: "0755"
+
+- name: Download Ansible Tower installer from S3 bucket
+  amazon.aws.s3_object:
+    aws_config:
+      s3:
+        addressing_style: virtual
+    bucket: "{{ install_s3_bucket }}"
+    object: "tower/{{ install_s3_ansible_file }}"
+    dest: /tmp/ansible-tower-setup-latest.tar.gz
+    mode: get
+    overwrite: latest # "different" uses MD5 which is disabled in FIPS mode
+    region: "{{ aws_region }}"
+    endpoint_url: "https://s3-fips.{{ aws_region }}.amazonaws.com"
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Check Ansible installer file hash
+  ansible.builtin.stat:
+    path: /tmp/ansible-tower-setup-latest.tar.gz
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: ansible_downloaded_installer_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - ansible_downloaded_installer_file.stat.checksum == ansible_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ ansible_downloaded_installer_file.stat.checksum }}, the expected hash is {{ ansible_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Unarchive Ansible Tower installer
+  ansible.builtin.unarchive:
+    src: /tmp/ansible-tower-setup-latest.tar.gz
+    dest: /tmp/twrinst
+    remote_src: true
+    extra_opts: [--strip-components=1]
+    creates: /tmp/twrinst/setup.sh
+
+# Note: I believe moving from ansible-core 2.12 to ansible-core >= 2.13 causes a failure with roles/awx_install/tasks/tasks.yml line 343
+# "Clean up any poorly-permissioned Tower configuration files on upgrade" to fail, specifically with "with_items" since the YAML parser in VSCode says it's
+# incorrect.  This is a workaround to address that.  Something cleaner might be to install Ansible 2.9 in a virtual env and use that instead.  But this works.
+- name: Add ignore_error to tasks
+  ansible.builtin.lineinfile:
+    path: /tmp/twrinst/roles/awx_install/tasks/tasks.yml
+    insertafter: "with_items:"
+    line: "  ignore_errors: true"
+
+- name: Copy Misc Files
+  ansible.builtin.include_tasks: copy_files.yml
+
+- name: Encrypt group_vars/all
+  ansible.builtin.command: ansible-vault encrypt /tmp/twrinst/group_vars/all --vault-password-file=/tmp/twrinst/ansible-vault.pass
+  register: ansible_vault_command
+  changed_when: ansible_vault_command.rc == 0

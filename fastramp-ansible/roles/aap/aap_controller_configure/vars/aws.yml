@@ -1,0 +1,44 @@
+---
+# Common
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path', endpoint=ssm_endpoint) }}"
+aap_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/aap_secrets_path', endpoint=ssm_endpoint) }}"
+ssm_parameter_store_key_id: "{{ lookup('amazon.aws.aws_ssm', '/production/ssm_parameter_store_key_id', endpoint=ssm_endpoint) }}"
+
+dom_disname: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'dom_disname', endpoint=ssm_endpoint) }}"
+install_s3_bucket: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'install_s3_bucket', endpoint=ssm_endpoint) }}"
+
+# Create API Token
+aap_controller_admin_api_token: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'aap_controller_admin_api_token', endpoint=ssm_endpoint) }}"
+controller_password: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'admin', endpoint=ssm_endpoint) }}"
+
+# Organization
+aap_org_name: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'aap_org_name', endpoint=ssm_endpoint) }}"
+
+# Inventory
+prod_account_role_arn: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'prod_account_role_arn', endpoint=ssm_endpoint) }}"
+
+
+# Project
+code_commit_url: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'code_commit_url', endpoint=ssm_endpoint) }}"
+codecommit_user_name: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'codecommit_user_name', endpoint=ssm_endpoint) }}"
+codecommit_user_password: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'codecommit_user_password', endpoint=ssm_endpoint) }}"
+
+# LDAP
+svc_aap_password: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_aap', endpoint=ssm_endpoint) }}"
+svc_ansible_da_password: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_ansible_da', endpoint=ssm_endpoint) }}"
+
+# Credentials
+svc_ansible_pass: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_ansible', endpoint=ssm_endpoint) }}"
+
+# Logging
+deployed_siem: "{{ lookup('amazon.aws.aws_ssm', '/production/siem', endpoint=ssm_endpoint) }}"
+splunk_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/splunk_secrets_path', endpoint=ssm_endpoint, on_missing='skip') }}"
+user_password: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'user_password', endpoint=ssm_endpoint, on_missing='skip') }}"
+configure_log_ingest: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'configure_log_ingest', endpoint=ssm_endpoint) | bool }}"
+
+ecr_repository_url: "{{ lookup('amazon.aws.aws_ssm', aap_secrets_path + 'ecr_repository_url', endpoint=ssm_endpoint) }}"

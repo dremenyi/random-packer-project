@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-16"?>
+<MigrationTable xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.microsoft.com/GroupPolicy/GPOOperations/MigrationTable">
+  <Mapping>
+    <Type>Unknown</Type>
+    <Source>ADD YOUR CONFIG GROUP</Source>
+    <Destination>AnsibleService</Destination>
+  </Mapping>
+  <Mapping>
+    <Type>Unknown</Type>
+    <Source>ADD YOUR SCAN GROUP</Source>
+    <Destination>VulnScan</Destination>
+  </Mapping>
+  <Mapping>
+    <Type>Unknown</Type>
+    <Source>ADD YOUR ENTERPRISE ADMINS</Source>
+    <Destination>Enterprise Admins</Destination>
+  </Mapping>
+  <Mapping>
+    <Type>Unknown</Type>
+    <Source>ADD YOUR DOMAIN ADMINS</Source>
+    <Destination>Domain Admins</Destination>
+  </Mapping>
+</MigrationTable>

@@ -1,0 +1,3 @@
+root_ca_store: /etc/pki/ca-trust/source/anchors/cacert.pem
+update_ca_handler: rhel update ca trust
+nessus_file_contains_string: amzn2.x86_64.rpm

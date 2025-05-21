@@ -1,0 +1,18 @@
+- name: Create API Token from controller
+  awx.awx.token:
+    scope: "write"
+    state: present
+    controller_host: "{{ controller_api_url }}"
+    controller_username: admin
+    controller_password: "{{ controller_password }}"
+    validate_certs: true
+
+- name: Store API Token in SSM Parameter Store
+  community.aws.ssm_parameter:
+    name: "{{ aap_secrets_path }}aap_controller_admin_api_token"
+    state: present
+    string_type: "SecureString"
+    value: "{{ controller_token.token }}"
+    region: "{{ aws_region }}"
+    key_id: "{{ ssm_parameter_store_key_id }}"
+    endpoint_url: "{{ ssm_endpoint }}"

@@ -1,0 +1,42 @@
+- name: Remove Ansible Tower installer directory
+  ansible.builtin.file:
+    path: /tmp/twrinst
+    state: absent
+  become: true
+
+- name: Download Ansible Tower collection from S3 bucket
+  amazon.aws.s3_object:
+    aws_config:
+      s3:
+        addressing_style: virtual
+    bucket: "{{ install_s3_bucket }}"
+    object: "tower/{{ install_s3_tower_collection }}"
+    dest: "/tmp/{{ install_s3_tower_collection }}"
+    mode: get
+    overwrite: latest # "different" uses MD5 which is disabled in FIPS mode
+    region: "{{ aws_region }}"
+    endpoint_url: "https://s3-fips.{{ aws_region }}.amazonaws.com"
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Install Ansible Tower collection from offline file
+  ansible.builtin.command:
+    cmd: "ansible-galaxy collection install /tmp/{{ install_s3_tower_collection }} -p /usr/share/ansible/collections"
+    creates: /usr/share/ansible/collections/ansible_collections/ansible/tower
+  register: install_tower_collection
+  changed_when: install_tower_collection.stdout_lines | select("match", ".*was installed successfully*")
+
+- name: Remove Ansible Tower Collection zip
+  ansible.builtin.file:
+    path: "/tmp/{{ install_s3_tower_collection }}"
+    state: absent
+
+- name: Create CNAME record for ALB
+  community.windows.win_dns_record:
+    name: "tower"
+    type: "CNAME"
+    value: "{{ alb_hostname }}"
+    zone: "{{ ansible_domain }}"
+  delegate_to: dc1
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['ansible1']['svc_ansible_da_password'] }}"

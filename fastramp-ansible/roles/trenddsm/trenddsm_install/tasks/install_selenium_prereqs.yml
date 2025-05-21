@@ -1,0 +1,97 @@
+- name: Install Packages for RHEL
+  delegate_to: localhost
+  when: hostvars['ansible1']['ansible_facts']['os_family'] == 'RedHat'
+  block:
+    - name: Install required packages on Ansible host
+      ansible.builtin.package:
+        name:
+          - xorg-x11-server-Xvfb
+        state: present
+      become: true
+
+    - name: Add Google gpg key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://dl.google.com/linux/linux_signing_key.pub
+      become: true
+
+    - name: Install Google Chrome
+      ansible.builtin.yum:
+        name: https://dl.google.com/linux/direct/google-chrome-stable_current_x86_64.rpm
+        state: present
+      become: true
+
+    - name: Install Python Packages on Ansible host
+      ansible.builtin.pip:
+        name: "{{ item }}"
+        state: present
+        umask: "0022"
+      become: true
+      loop:
+        - selenium
+        - webdriver-manager
+        - distro
+
+- name: Install Packages for Ubuntu (not 22.04)
+  delegate_to: localhost
+  when:
+    - hostvars['ansible1']['ansible_facts']['distribution'] == 'Ubuntu'
+    - not hostvars['ansible1']['ansible_facts']['distribution_version'] == '22.04'
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.11
+  block:
+    - name: Install required packages on Ansible host
+      ansible.builtin.package:
+        name:
+          - xvfb
+        state: present
+      become: true
+
+    - name: Install Google Chrome
+      ansible.builtin.apt:
+        deb: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        state: present
+      become: true
+
+    - name: Install Python Packages on Ansible host
+      ansible.builtin.pip:
+        name: "{{ item }}"
+        state: present
+        umask: "0022"
+      become: true
+      loop:
+        - selenium
+        - webdriver-manager
+        - distro
+
+- name: Install Packages for Ubuntu 22.04
+  delegate_to: localhost
+  when:
+    - hostvars['ansible1']['ansible_facts']['distribution'] == 'Ubuntu'
+    - hostvars['ansible1']['ansible_facts']['distribution_version'] == '22.04'
+  vars:
+    ansible_python_interpreter: /usr/bin/python3.11
+  block:
+    - name: Install required packages on Ansible host
+      ansible.builtin.package:
+        name:
+          - xvfb
+        state: present
+      become: true
+
+    - name: Install Google Chrome
+      ansible.builtin.apt:
+        deb: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        state: present
+      become: true
+
+    - name: Install Python Packages on Ansible host
+      ansible.builtin.pip:
+        name: "{{ item }}"
+        state: present
+        umask: "0022"
+      become: true
+      loop:
+        - selenium
+        - webdriver-manager
+        - distro

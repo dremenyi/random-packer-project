@@ -1,0 +1,15 @@
+- name: Configure splunk-launch.conf file
+  community.general.ini_file:
+    path: /opt/splunkforwarder/etc/splunk-launch.conf
+    section: null
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: "{{ splunk_user }}"
+    group: "{{ splunk_user }}"
+  become: true
+  loop:
+    - { option: "SPLUNK_HOME", value: "/opt/splunkforwarder/" }
+    - { option: "SPLUNK_SERVER_NAME", value: "Splunkd" }
+    - { option: "FIPS", value: "1" }
+    - { option: "PYTHONHTTPSVERIFY", value: "1" }

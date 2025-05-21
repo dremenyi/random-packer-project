@@ -1,0 +1,55 @@
+- name: Create Temp file for dsm prop
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .prop
+  register: dsm_prop_tempfile
+
+- name: Download dsm installer
+  ansible.builtin.get_url:
+    url: "{{ dsm_download_url }}"
+    dest: "/tmp/{{ dsm_installer_name }}"
+    force: true
+    mode: "0755"
+
+- name: Check dsm installer file hash
+  ansible.builtin.stat:
+    path: "/tmp/{{ dsm_installer_name }}"
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: dsm_downloaded_installer_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - dsm_downloaded_installer_file.stat.checksum == dsm_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ dsm_downloaded_installer_file.stat.checksum }}, the expected hash is {{ dsm_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Copy dsm prop from template
+  ansible.builtin.template:
+    src: trend.prop.j2
+    dest: "/tmp/trend.prop"
+    force: true
+    mode: "0644"
+
+- name: Run dsm Installer
+  ansible.builtin.command: "/tmp/{{ dsm_installer_name }} -q -varfile /tmp/trend.prop"
+  args:
+    creates: /opt/dsm
+  register: dsm_installer
+  become: true
+  changed_when: dsm_installer.stdout_lines | select("match", ".*Finish Installation.*")
+
+- name: Debug dsm_installer
+  ansible.builtin.debug:
+    var: dsm_installer
+
+- name: Remove dsm installer Tempfile
+  ansible.builtin.file:
+    path: "/tmp/{{ dsm_installer_name }}"
+    state: absent
+
+- name: Remove dsm prop Tempfile
+  ansible.builtin.file:
+    path: "/tmp/trend.prop"
+    state: absent

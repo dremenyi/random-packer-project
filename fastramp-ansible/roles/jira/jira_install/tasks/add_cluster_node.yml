@@ -1,0 +1,42 @@
+- name: Stop Jira
+  ansible.builtin.service:
+    name: jira.service
+    state: stopped
+    enabled: true
+  become: true
+
+- name: Slurp dbconfig.xml
+  ansible.builtin.slurp:
+    src: /sharedhome/backup/dbconfig.xml
+  register: slurp_dbconfig
+  become: true
+
+- name: Copy dbconfig.xml
+  ansible.builtin.copy:
+    content: "{{ slurp_dbconfig['content'] | b64decode }}"
+    dest: /var/atlassian/application-data/jira/dbconfig.xml
+    owner: jira
+    group: jira
+    mode: preserve
+  become: true
+
+- name: Copy cluster.properties from template
+  ansible.builtin.template:
+    src: cluster.properties.j2
+    dest: /var/atlassian/application-data/jira/cluster.properties
+    mode: "0664"
+    owner: jira
+    group: jira
+    force: true
+  become: true
+
+- name: Start Jira
+  ansible.builtin.service:
+    name: jira.service
+    state: started
+  become: true
+  notify: Pause # Adding pause as it takes a minute or two before Jira fully loads
+
+# Flush handlers to delete tempfiles and start pause now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers

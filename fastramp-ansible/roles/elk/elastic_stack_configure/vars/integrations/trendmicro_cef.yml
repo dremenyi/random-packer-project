@@ -1,0 +1,34 @@
+trendmicro_cef_integration:
+  policy_id: "{{ policy_id }}"
+  package:
+    name: cef
+    version: "{{ package_version }}"
+  name: cef-trendmicro
+  description: ""
+  namespace: "{{ item.policy_namespace }}"
+  inputs:
+    cef-logfile:
+      enabled: false
+      streams:
+        cef.log:
+          enabled: false
+          vars:
+            paths:
+              - "/var/log/cef.log"
+            tags:
+              - cef
+              - forwarded
+            preserve_original_event: false
+    cef-udp:
+      enabled: true
+      streams:
+        cef.log:
+          enabled: true
+          vars:
+            syslog_host: 127.0.0.1
+            syslog_port: "5514"
+            tags:
+              - cef
+              - forwarded
+              - trend
+            preserve_original_event: false

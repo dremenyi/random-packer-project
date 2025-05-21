@@ -1,0 +1,101 @@
+---
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+- name: Identify a Free Disk with no partitions
+  ansible.builtin.set_fact:
+    free_disk: "{{ item['key'] }}"
+  with_items:
+    - "{{ ansible_devices | dict2items }}"
+  when:
+    - item['value']['model'] == "Amazon Elastic Block Store"
+    - item['value']['holders'] | length == 0
+    - item['value']['partitions'] | length == 0
+    - item['value']['links']['masters'] | length == 0
+
+
+- name: Gather facts explicitly
+  ansible.builtin.setup:
+    gather_subset: 
+      - distribution
+      - pkg_mgr
+
+- name: Check if LVM tools are already installed
+  ansible.builtin.shell: command -v lvs >/dev/null 2>&1
+  register: lvm_exists
+  changed_when: false
+  failed_when: false
+
+- name: Install LVM2 using package manager detected from facts
+  ansible.builtin.package:
+    name: lvm2
+    state: present
+  when: lvm_exists.rc != 0
+  register: lvm_install_result
+  failed_when: false
+
+- name: Install LVM2 using shell fallback (if package module failed)
+  ansible.builtin.shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y lvm2
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y lvm2
+    elif command -v apt-get >/dev/null 2>&1; then
+      apt-get update && apt-get install -y lvm2
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  when: lvm_exists.rc != 0 and (lvm_install_result is failed or lvm_install_result is skipped)
+
+- name: Verify LVM2 installation
+  ansible.builtin.command: lvs --version
+  register: lvs_version
+  changed_when: false
+  failed_when: false
+
+- name: Create Volume Group
+  community.general.lvg:
+    vg: disk2vg
+    pvs: "/dev/{{ free_disk }}"
+
+- name: Create lvol
+  community.general.lvol:
+    vg: disk2vg
+    lv: "{{ item.value.lv }}"
+    size: "{{ item.value.size }}"
+  loop: "{{ lookup('dict', directories) }}"
+
+- name: Create filesystem
+  community.general.filesystem:
+    fstype: xfs
+    dev: "/dev/disk2vg/{{ item.value.lv }}"
+  loop: "{{ lookup('dict', directories) }}"
+
+# If certain services are not stopped, there will still be a file lock when you try to move or delete the old directories
+- name: Stop Services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ services }}"
+
+- name: Stop auditd
+  ansible.builtin.command:
+    cmd: service auditd stop
+  when: ansible_facts['distribution'] == 'RedHat' or ansible_facts['distribution'] == 'Amazon'
+  changed_when: true
+
+- name: Migrate and Mount disk
+  ansible.builtin.include_tasks: mount_and_migrate_disks.yml
+  loop: "{{ lookup('dict', directories) }}"

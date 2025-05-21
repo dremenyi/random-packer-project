@@ -1,0 +1,19 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Check if Trend Agent service exists
+  ansible.windows.win_service_info:
+    name: ds_agent
+  register: ds_agent_info
+
+- name: Trend Agent Deployment
+  ansible.builtin.include_tasks: install.yml
+  when: not ds_agent_info.exists
+
+- name: Start trend agent service if not running
+  ansible.windows.win_service:
+    name: ds_agent
+    state: started
+    start_mode: auto

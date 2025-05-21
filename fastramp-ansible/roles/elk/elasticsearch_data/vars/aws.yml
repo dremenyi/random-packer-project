@@ -1,0 +1,24 @@
+---
+# Common
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path', endpoint=ssm_endpoint) }}"
+elastic_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/elastic_secrets_path', endpoint=ssm_endpoint) }}"
+
+# Elastic
+elastic_password: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'elastic_password', endpoint=ssm_endpoint) }}"
+s3_backup_folder_id: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 's3_backup_folder_id', endpoint=ssm_endpoint) }}"
+
+# TLS
+elastic_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'esdata_cert', endpoint=ssm_endpoint) }}"
+elastic_cert_key: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'esdata_cert_key', endpoint=ssm_endpoint) }}"
+rootca_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'root_ca_pub.pem', endpoint=ssm_endpoint) }}"
+ssl_password: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'ssl_password', endpoint=ssm_endpoint) }}"
+
+# LDAP
+dom_disname: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'dom_disname', endpoint=ssm_endpoint) }}"
+elastic_ldap_bind_password: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_elastic', endpoint=ssm_endpoint) }}"
+svc_ansible_da_password: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_ansible_da', endpoint=ssm_endpoint) }}"

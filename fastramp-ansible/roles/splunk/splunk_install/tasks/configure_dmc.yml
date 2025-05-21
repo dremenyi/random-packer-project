@@ -1,0 +1,46 @@
+# Add all hosts to the DMC except indexer cluster hosts as per the docs
+- name: Configure systems as search peers to be monitored except indexers
+  ansible.builtin.shell: >
+    /opt/splunk/bin/splunk add search-server https://{{ item }}.{{ ansible_domain }}:8089 -auth "admin:{{ user_password }}"
+    -remoteUsername admin -remotePassword "{{ user_password }}"
+  loop: "{{ query('inventory_hostnames', 'splunk:!indexer:!clustermanager') }}"
+  become: true
+  become_user: splunk
+  ignore_errors: true
+  no_log: true
+  register: add_search_peer
+  changed_when: add_search_peer.stdout | select("match", ".*Peer added.*")
+  when: ansible_domain | length > 0
+
+- name: Configure systems as search peers to be monitored except indexers (Molecule)
+  ansible.builtin.shell: >
+    /opt/splunk/bin/splunk add search-server https://{{ item }}:8089 -auth "admin:{{ user_password }}"
+    -remoteUsername admin -remotePassword "{{ user_password }}"
+  loop: "{{ query('inventory_hostnames', 'splunk:!indexer:!clustermanager') }}"
+  become: true
+  become_user: splunk
+  ignore_errors: true
+  no_log: true
+  register: add_search_peer_molecule
+  changed_when: add_search_peer.stdout | select("match", ".*Peer added.*")
+  when: ansible_domain | length == 0
+
+# To capture output for idempotency
+- name: Debug add_search_peer
+  ansible.builtin.debug:
+    var: add_search_peer
+
+# To-do: Check that this task runs on a clean install to ensure conditional is correct.
+- name: Configure monitoring console in auto mode
+  community.general.ini_file:
+    path: /opt/splunk/etc/apps/splunk_monitoring_console/local/splunk_monitoring_console_assets.conf
+    section: 'settings'
+    option: mc_auto_config
+    value: enabled
+    owner: splunk
+    group: splunk
+    mode: "0644"
+  become: true
+  become_user: splunk
+  when: add_search_peer is not failed # Do not set if above command failed otherwise it is not idempotent
+  notify: restart splunk

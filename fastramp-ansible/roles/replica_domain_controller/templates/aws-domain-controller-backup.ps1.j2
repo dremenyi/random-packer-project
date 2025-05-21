@@ -1,0 +1,47 @@
+$bucketName = "{{ ad_s3_backup_bucket }}"
+$aws_region = "{{ aws_region }}"
+$dateTime = $(Get-Date -Format yyMMddHHmm)
+$fileName = $env:COMPUTERNAME + - + $dateTime
+$backUpDir = "\\$env:COMPUTERNAME\c$\programdata\ADBackups\$fileName\"
+$localPath = "C:\ProgramData\ADBackups\$fileName"
+$zipFilePath = "C:\ProgramData\ADBackups\"
+
+$checkFeature = get-windowsfeature -name Windows-Server-Backup
+
+if ( $checkFeature.Installed -ne "True" ) {
+    Add-WindowsFeature Windows-Server-Backup | Out-Null
+}
+
+if (!(Get-Module -Name "7Zip4PowerShell" -ListAvailable)) {
+    Set-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy' -name 'Enabled' -value '0' -Force | Out-Null
+    Start-Process powershell {[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12;
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false;
+    Install-Module -Name 7Zip4PowerShell -Force -Confirm:$false} -NoNewWindow -Wait
+    Set-ItemProperty -path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy' -name 'Enabled' -value '1' -Force | Out-Null
+}
+
+
+New-Item -ItemType Directory $localPath
+
+#create the backup policy
+$policy = New-WBPolicy
+
+#back up the System State
+Add-WBSystemState -Policy $policy
+
+$backupLocation = New-WBBackupTarget -Network $backUpDir
+
+#Work around to keep the backup on the local server and still use system drive as a temp location
+Add-WBBackupTarget -Policy $policy -Target $backupLocation
+
+#start the backup
+Start-WBBackup -Policy $policy
+
+#Archive the backup folder into a single file for S3 Storage
+Compress-7Zip -Path $localPath -ArchiveFileName "$zipFilePath$fileName.zip" -Format Zip -CompressionLevel Fast | Out-Null
+
+Write-S3Object -BucketName $bucketName -Key "$($env:COMPUTERNAME.ToLower())/$fileName.zip" -File "$localPath.zip" -Region $aws_region
+
+#Clean up the backup
+Remove-Item $localPath -Force  -Recurse
+Remove-Item "$localPath.zip" -Force  -Recurse

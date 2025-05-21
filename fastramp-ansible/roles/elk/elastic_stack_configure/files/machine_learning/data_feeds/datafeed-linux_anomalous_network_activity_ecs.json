@@ -1,0 +1,56 @@
+{
+    "datafeed_id" : "datafeed-linux_anomalous_network_activity_ecs",
+    "job_id" : "linux_anomalous_network_activity_ecs",
+    "query_delay" : "65103ms",
+    "indices" : [
+      "auditbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "filter" : [
+          {
+            "term" : {
+              "event.action" : "connected-to"
+            }
+          },
+          {
+            "term" : {
+              "agent.type" : "auditbeat"
+            }
+          }
+        ],
+        "must_not" : [
+          {
+            "bool" : {
+              "should" : [
+                {
+                  "term" : {
+                    "destination.ip" : "127.0.0.1"
+                  }
+                },
+                {
+                  "term" : {
+                    "destination.ip" : "127.0.0.53"
+                  }
+                },
+                {
+                  "term" : {
+                    "destination.ip" : "::1"
+                  }
+                }
+              ],
+              "minimum_should_match" : 1
+            }
+          }
+        ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    },
+    "max_empty_searches" : 10
+  }

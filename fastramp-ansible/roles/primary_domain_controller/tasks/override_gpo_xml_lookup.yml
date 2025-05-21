@@ -1,0 +1,28 @@
+- name: Read Override GPO XML
+  community.general.xml:
+    path: "{{ item.files[0].path }}"
+    content: text
+    xpath: "{{ bkupinfo_item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: override_xml
+  delegate_to: localhost
+  loop: "{{ bkupinfo_xpaths }}"
+  loop_control:
+    loop_var: bkupinfo_item
+
+- name: Create override_gpo_xml_loop_item
+  ansible.builtin.set_fact:
+    override_gpo_xml_loop_item:
+      - GPOGuid: "{{ override_xml.results[0].matches[0].values() | first }}"
+        GPODomain: "{{ override_xml.results[1].matches[0].values() | first }}"
+        GPODomainGuid: "{{ override_xml.results[2].matches[0].values() | first }}"
+        GPODomainController: "{{ override_xml.results[3].matches[0].values() | first }}"
+        BackupTime: "{{ override_xml.results[4].matches[0].values() | first }}"
+        ID: "{{ override_xml.results[5].matches[0].values() | first }}"
+        Comment: "{{ override_xml.results[6].matches[0].values() | first }}"
+        GPODisplayName: "{{ override_xml.results[7].matches[0].values() | first }}"
+
+- name: Append Override XML list
+  ansible.builtin.set_fact:
+    override_gpo_xml_list: "{{ override_gpo_xml_list + override_gpo_xml_loop_item }}"

@@ -1,0 +1,14 @@
+---
+# Group Policies
+app_dir: "C:\\ProgramData\\Coalfire\\"
+gpo_path: "{{ app_dir }}GPOs\\"
+
+bkupinfo_xpaths:
+  - /x:BackupInst/x:GPOGuid
+  - /x:BackupInst/x:GPODomain
+  - /x:BackupInst/x:GPODomainGuid
+  - /x:BackupInst/x:GPODomainController
+  - /x:BackupInst/x:BackupTime
+  - /x:BackupInst/x:ID
+  - /x:BackupInst/x:Comment
+  - /x:BackupInst/x:GPODisplayName

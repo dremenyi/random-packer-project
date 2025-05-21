@@ -1,0 +1,16 @@
+- name: Load Prebuilt Rules
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/detection_engine/rules/prepackaged"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: PUT
+    force_basic_auth: true
+    status_code: 200
+    headers:
+      kbn-xsrf: true
+    timeout: 120
+  register: load_prebuilt_rules
+
+- name: Debug load_prebuilt_rules
+  ansible.builtin.debug:
+    var: load_prebuilt_rules

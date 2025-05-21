@@ -1,0 +1,24 @@
+tcp_integration:
+  policy_id: "{{ policy_id }}"
+  package:
+    name: tcp
+    version: "{{ package_version }}"
+  name: tcp-ingest
+  description: ""
+  namespace: "{{ item.policy_namespace }}"
+  inputs:
+    tcp-tcp:
+      enabled: true
+      streams:
+        tcp.generic:
+          enabled: true
+          vars:
+            listen_address: 0.0.0.0
+            listen_port: "6514"
+            data_stream.dataset: tcp.generic
+            tags: []
+            syslog_options: "field: message"
+            ssl: |
+              enabled: true
+              certificate: "/etc/elasticsearch/certs/server.cer"
+              key: "/etc/elasticsearch/certs/server_unenc.key"

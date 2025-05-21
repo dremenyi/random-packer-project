@@ -1,0 +1,37 @@
+---
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+### Windows ###
+- name: Windows tasks
+  when: "'windows' in group_names"
+  block:
+    - name: Check if Authlite service exists
+      ansible.windows.win_service_info:
+        name: authlite
+      register: authlite_info
+
+    - name: Authlite Deployment
+      ansible.builtin.include_tasks: win_install_authlite.yml
+      when: not authlite_info.exists
+
+    - name: Start Authlite service if not running
+      ansible.windows.win_service:
+        name: authlite
+        state: started
+        start_mode: auto
+
+### Linux ###
+- name: Linux tasks
+  when: "'linux' in group_names"
+  block:
+    - name: Authlite Deployment
+      ansible.builtin.include_tasks: lin_configure_authlite.yml

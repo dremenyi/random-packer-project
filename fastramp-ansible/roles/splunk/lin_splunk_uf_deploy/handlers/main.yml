@@ -1,0 +1,37 @@
+- name: reload systemctl daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: restart redhat auditd service
+  ansible.builtin.command: service auditd condrestart
+  become: true
+  when: ansible_os_family == 'RedHat'
+  changed_when: true
+
+- name: restart non-redhat auditd service
+  ansible.builtin.service:
+    name: auditd
+    state: restarted
+  become: true
+  when: ansible_os_family != 'RedHat'
+
+- name: stop splunk
+  ansible.builtin.service:
+    name: Splunkd
+    state: stopped
+  become: true
+
+- name: start splunk
+  ansible.builtin.service:
+    name: Splunkd
+    state: started
+  become: true
+  when: not is_packer
+
+- name: restart splunk
+  ansible.builtin.service:
+    name: Splunkd
+    state: restarted
+  become: true
+  when: not is_packer

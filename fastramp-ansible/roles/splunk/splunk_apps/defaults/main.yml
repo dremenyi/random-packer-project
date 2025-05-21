@@ -1,0 +1,270 @@
+# Input vars
+cipher_suite: ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+ecdh_curves: prime256v1, secp384r1, secp521r1
+
+# Server Classes
+serverclasses:
+  - serverclass: all_linux_servers
+    whitelist:
+      - "*"
+    blacklist:
+      - "*splunkidx*"
+      - "*splunkcm*"
+    platform: linux-x86_64
+    apps:
+      - name: Splunk_TA_nix
+        options:
+          restartSplunkd: 1
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: linux_ssl_outputs
+        options:
+          restartSplunkd: 1
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+  - serverclass: all_windows_servers
+    whitelist:
+      - "*"
+    platform: windows-x64
+    apps:
+      - name: Splunk_TA_windows
+        options:
+          restartSplunkd: 1
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: windows_ssl_outputs
+        options:
+          restartSplunkd: 1
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+  - serverclass: all_search_heads
+    whitelist:
+      - "*splunksh*"
+    apps:
+      - name: Splunk_TA_nix
+        options:
+          restartSplunkd: 1
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: bullet_graph_app
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: departures-board-viz
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: flow_map_viz
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: force_directed_viz
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: network-diagram-viz
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: pagerduty_incidents
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: punchcard_app
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: SA-ldapsearch
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: sankey_diagram_app
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: Splunk_ML_Toolkit
+        options:
+          restartSplunkd: 0 
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: Splunk_SA_CIM
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: timeline_app
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: Ansible_Splunk
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: TA-tenable
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+  - serverclass: all_heavy_forwarders
+    whitelist:
+      - "*splunkhf*"
+    apps:
+      - name: TA-tenable
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+      - name: Ansible_Splunk
+        options:
+          restartSplunkd: 0
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+  - serverclass: all_tower_servers
+    whitelist:
+      - "*tower*"
+    apps:
+      - name: Ansible_Splunk
+        options:
+          restartSplunkd: 1
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+  - serverclass: jira_servers
+    whitelist:
+      - "*jira*"
+    apps:
+      - name: jira_inputs
+        options:
+          restartSplunkd: 1
+          restartSplunkWeb: 1
+          stateOnClient: enabled
+
+# Applications
+deployment_server_apps:
+  # TA
+  - app: Splunk_TA_windows
+    inputs: true
+    props: false
+    tarball: true
+  - app: Splunk_TA_nix
+    inputs: true
+    props: false
+    tarball: true
+  - app: Splunk_TA_paloalto
+    inputs: false
+    props: false
+    tarball: false
+  - app: TA-atlassian-jira-issue-alerts
+    inputs: false
+    props: false
+    tarball: true
+  - app: TA-tenable
+    inputs: true
+    props: false
+    tarball: true
+  # Viz
+  - app: bullet_graph_app
+    inputs: false
+    props: false
+    tarball: true
+  - app: departures-board-viz
+    inputs: false
+    props: false
+    tarball: true
+  - app: flow_map_viz
+    inputs: false
+    props: false
+    tarball: true
+  - app: force_directed_viz
+    inputs: false
+    props: false
+    tarball: true
+  - app: network-diagram-viz
+    inputs: false
+    props: false
+    tarball: true
+  - app: pagerduty_incidents
+    inputs: false
+    props: false
+    tarball: true
+  - app: punchcard_app
+    inputs: false
+    props: false
+    tarball: true
+  - app: SA-ldapsearch
+    inputs: false
+    props: false
+    tarball: true
+  - app: sankey_diagram_app
+    inputs: false
+    props: false
+    tarball: true
+  - app: Splunk_SA_CIM
+    inputs: false
+    props: false
+    tarball: true
+  - app: timeline_app
+    inputs: false
+    props: false
+    tarball: true
+  # Other
+  - app: Ansible_Splunk
+    inputs: false
+    props: false
+    tarball: true
+  - app: jira_inputs
+    inputs: true
+    props: true
+    tarball: false
+
+heavy_forwarder_apps:
+  - app: TrendMicroDeepSecurity
+    inputs: true
+    props: false
+    tarball: true
+  - app: Splunk_TA_aws
+    inputs: true
+    props: false
+    tarball: true
+  - app: TA-aws_waf
+    inputs: false
+    props: false
+    tarball: true
+
+search_head_local_apps:
+  - app: Splunk_TA_aws
+    inputs: false
+    props: false
+    tarball: true
+  - app: cf_security_compliance
+    inputs: false
+    props: false
+    tarball: true
+  - app: TA-aws_waf
+    inputs: false
+    props: false
+    tarball: true
+
+cluster_manager_apps:
+  - app: Splunk_TA_nix
+    inputs: true
+    props: false
+    tarball: true
+  - app: TA-aws_waf
+    inputs: false
+    props: false
+    tarball: true
+  - app: splunk_httpinput
+    inputs: true
+    props: false
+    tarball: false

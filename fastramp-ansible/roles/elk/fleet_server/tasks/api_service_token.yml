@@ -1,0 +1,28 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    ### Elasticsearch Service Token ###
+    # 200 = Deleted
+    # 404 = Not found (does not exist)
+    - name: Ensure elasticsearch service token does not exist
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_security/service/elastic/fleet-server/credential/token/{{ inventory_hostname }}"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: DELETE
+        force_basic_auth: true
+        status_code: 200, 404
+      register: delete_fleet_service_token
+      changed_when: delete_fleet_service_token.status == 200
+
+    - name: Create elasticsearch service token for fleet server
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_security/service/elastic/fleet-server/credential/token/{{ inventory_hostname }}"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: PUT
+        force_basic_auth: true
+        status_code: 200
+      register: fleet_service_token
+      changed_when: fleet_service_token.status == 200
+      no_log: true

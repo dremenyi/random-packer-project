@@ -1,0 +1,19 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Check if Splunk UF service exists
+  ansible.windows.win_service_info:
+    name: splunkforwarder
+  register: splunk_agent_info
+
+- name: Splunk UF Deployment
+  ansible.builtin.include_tasks: install.yml
+  when: not splunk_agent_info.exists
+
+- name: Start Splunk UF service if not running
+  ansible.windows.win_service:
+    name: splunkforwarder
+    state: started
+    start_mode: auto

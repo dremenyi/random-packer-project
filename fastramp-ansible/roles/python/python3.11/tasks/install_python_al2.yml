@@ -1,0 +1,43 @@
+- name: Download Python 3.11 tar
+  ansible.builtin.get_url:
+    url: https://www.python.org/ftp/python/3.11.5/Python-3.11.5.tgz
+    dest: /opt/Python-3.11.5.tgz
+    mode: "0600"
+
+- name: Extract foo.tgz into /var/lib/foo
+  ansible.builtin.unarchive:
+    src: /opt/Python-3.11.5.tgz
+    dest: /opt/Python-3.11.5
+    remote_src: yes
+
+- name: Compile Python 3.11
+  ansible.builtin.command:
+    cmd: ./configure --enable-optimizations
+    chdir: /opt/Python-3.11.5
+  become: true
+  register: compile_python
+
+- name: Debug compile_python
+  debug:
+    var: compile_python
+
+- name: Run 'altinstall' target as root
+  community.general.make:
+    chdir: /opt/Python-3.11.5
+    target: altinstall
+  become: true
+
+- name: Cleanup Python files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /opt/Python-3.11.5
+    - /opt/Python-3.11.5.tgz
+
+- name: Create a symbolic link
+  ansible.builtin.file:
+    src: /usr/local/bin/python3.11
+    dest: /usr/bin/python3.11
+    state: link
+  become: true

@@ -1,0 +1,71 @@
+- name: Copy splunk certificate
+  ansible.builtin.copy:
+    content: "{{ splunkclient_cert }}"
+    dest: /opt/splunk/etc/auth/certs/splunkclient.cer
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Copy splunk certificate
+  ansible.builtin.copy:
+    content: "{{ splunkclient_cert_key_unenc }}"
+    dest: /opt/splunk/etc/auth/certs/splunkclient_unenc.key
+    mode: "0400"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Slurp sanitized root CA
+  ansible.builtin.slurp:
+    src: /opt/splunk/etc/auth/certs/cacert.pem
+  register: cacert_pem
+  become: true
+
+- name: Slurp splunkclient certificate
+  ansible.builtin.slurp:
+    src: /opt/splunk/etc/auth/certs/splunkclient.cer
+  register: splunkclient_pem
+  become: true
+
+- name: Slurp splunkclient unencrypted key
+  ansible.builtin.slurp:
+    src: /opt/splunk/etc/auth/certs/splunkclient_unenc.key
+  register: splunkclient_unenc_key
+  become: true
+
+- name: Create formatted unencrypted certificate for Splunk
+  ansible.builtin.copy:
+    content: "{{ splunkclient_pem['content'] | b64decode }}{{ splunkclient_unenc_key['content'] | b64decode }}{{ cacert_pem['content'] | b64decode }}"
+    dest: "/opt/splunk/etc/auth/certs/splunkclient_unenc.pem"
+    mode: "0400"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Ensure output directory exists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: splunk
+    group: splunk
+    mode: "0775"
+  become: true
+  loop:
+    - "/opt/splunk/etc/deployment-apps/linux_ssl_outputs/certs"
+    - "/opt/splunk/etc/deployment-apps/windows_ssl_outputs/certs"
+
+- name: Copy required files to proper directories
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    remote_src: true
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { src: "/opt/splunk/etc/auth/certs/cacert.pem", dest: "/opt/splunk/etc/deployment-apps/linux_ssl_outputs/certs/cacert.pem", mode: "0644" }
+    - { src: "/opt/splunk/etc/auth/certs/splunkclient_unenc.pem", dest: "/opt/splunk/etc/deployment-apps/linux_ssl_outputs/certs/splunkclient_unenc.pem", mode: "0400" }
+    - { src: "/opt/splunk/etc/auth/certs/cacert.pem", dest: "/opt/splunk/etc/deployment-apps/windows_ssl_outputs/certs/cacert.pem", mode: "0644" }
+    - { src: "/opt/splunk/etc/auth/certs/splunkclient_unenc.pem", dest: "/opt/splunk/etc/deployment-apps/windows_ssl_outputs/certs/splunkclient_unenc.pem", mode: "0400" }

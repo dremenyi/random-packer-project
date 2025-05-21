@@ -1,0 +1,89 @@
+### Server Policy ###
+- name: Find AWS CIS Server GPO
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/Server"
+    recurse: false
+    file_type: directory
+  register: server_gpo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Find AWS CIS Server bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/Server"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: server_gpo_bkupinfo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Read CIS Server GPO XML
+  community.general.xml:
+    path: "{{ server_gpo_bkupinfo.files[0].path }}"
+    content: text
+    xpath: "{{ item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: server_xml
+  delegate_to: localhost
+  loop:
+    - /x:BackupInst/x:GPOGuid
+    - /x:BackupInst/x:GPODomain
+    - /x:BackupInst/x:GPODomainGuid
+    - /x:BackupInst/x:GPODomainController
+    - /x:BackupInst/x:BackupTime
+    - /x:BackupInst/x:ID
+    - /x:BackupInst/x:Comment
+    - /x:BackupInst/x:GPODisplayName
+
+### Server NTLM Policy ###
+- name: Find CIS Server NTLM GPO
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/base/CIS/GPOs/server_ntlm"
+    recurse: false
+    file_type: directory
+  register: server_ntlm_gpo
+  delegate_to: localhost
+
+- name: Copy Server NTLM GPO
+  ansible.windows.win_copy:
+    src: "{{ server_ntlm_gpo.files[0].path }}"
+    dest: "{{ app_dir }}GPOs"
+    recurse: true
+    force: true
+
+- name: Find CIS Server NTLM bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/base/CIS/GPOs/server_ntlm"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: server_ntlm_gpo_bkupinfo
+  delegate_to: localhost
+
+- name: Read CIS Server NTLM GPO XML
+  community.general.xml:
+    path: "{{ server_ntlm_gpo_bkupinfo.files[0].path }}"
+    content: text
+    xpath: "{{ item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: server_ntlm_xml
+  delegate_to: localhost
+  loop:
+    - /x:BackupInst/x:GPOGuid
+    - /x:BackupInst/x:GPODomain
+    - /x:BackupInst/x:GPODomainGuid
+    - /x:BackupInst/x:GPODomainController
+    - /x:BackupInst/x:BackupTime
+    - /x:BackupInst/x:ID
+    - /x:BackupInst/x:Comment
+    - /x:BackupInst/x:GPODisplayName
+
+- name: Link GPOs
+  ansible.windows.win_powershell:
+    script: "{{ lookup('ansible.builtin.template', 'gplink_workspaces.ps1.j2') }}"
+    error_action: stop
+  register: link_gpos
+  changed_when: link_gpos.verbose | select("match", ".*Create a link from.*")

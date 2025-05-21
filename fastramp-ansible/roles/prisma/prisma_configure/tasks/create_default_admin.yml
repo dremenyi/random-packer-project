@@ -1,0 +1,19 @@
+- name: Create default admin user
+  ansible.builtin.uri:
+    url: "{{ prisma_console_url }}/api/v1/signup"
+    method: POST
+    body_format: json
+    status_code: 200, 400
+    body:
+      username: admin
+      password: "{{ admin_password }}"
+    timeout: 180
+  register: post_default_admin
+  no_log: true
+  changed_when: post_default_admin.status == 200
+
+# https://pan.dev/compute/api/post-signup/
+# 200 = Successful operation
+- name: Debug post_default_admin
+  ansible.builtin.debug:
+    var: post_default_admin.json

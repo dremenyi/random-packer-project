@@ -1,0 +1,37 @@
+ansibletower_tcp_integration:
+  policy_id: "{{ policy_id }}"
+  package:
+    name: tcp
+    version: "{{ package_version }}"
+  name: tcp-ansibletower
+  description: ""
+  namespace: "{{ item.policy_namespace }}"
+  inputs:
+    tcp-tcp:
+      enabled: true
+      streams:
+        tcp.generic:
+          enabled: true
+          vars:
+            listen_address: 127.0.0.1
+            listen_port: "5515"
+            data_stream.dataset: tcp.generic
+            processors:
+              "- decode_json_fields:\r\n      fields: [\"message\"]\r\n      process_array:
+              false\r\n      max_depth: 1\r\n      target: \"\"\r\n      overwrite_keys:
+              true\r\n      add_error_key: true"
+            tags:
+              - ansibletower
+            syslog_options: |
+              field: message
+              #format: auto
+              #timezone: Local
+            ssl: |
+              #certificate: |
+              #    -----BEGIN CERTIFICATE-----
+              #    ...
+              #    -----END CERTIFICATE-----
+              #key: |
+              #    -----BEGIN PRIVATE KEY-----
+              #    ...
+              #    -----END PRIVATE KEY-----

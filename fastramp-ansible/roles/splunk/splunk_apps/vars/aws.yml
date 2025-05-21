@@ -1,0 +1,25 @@
+---
+# Common
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+sqs_fips_endpoint: "{% if is_gov %}sqs{% else %}sqs-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path', endpoint=ssm_endpoint) }}"
+splunk_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/splunk_secrets_path', endpoint=ssm_endpoint) }}"
+
+user_password: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'user_password', endpoint=ssm_endpoint) }}"
+
+# TLS
+rootca_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'root_ca_pub.pem', endpoint=ssm_endpoint) }}"
+splunkclient_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'splunkclient_cert', endpoint=ssm_endpoint) }}"
+splunkclient_cert_key_unenc: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'splunkclient_cert_key_unenc', endpoint=ssm_endpoint) }}"
+
+# AWS App
+mgmt_account_id: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'mgmt_account_id', endpoint=ssm_endpoint) }}"
+resource_prefix: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'resource_prefix', endpoint=ssm_endpoint) }}"
+mgmt_vpc_id: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'mgmt_vpc_id', endpoint=ssm_endpoint) }}"
+
+# AWS Logs
+ssm_parameter_store_key_id: "{{ lookup('amazon.aws.aws_ssm', '/production/ssm_parameter_store_key_id', endpoint=ssm_endpoint) }}"

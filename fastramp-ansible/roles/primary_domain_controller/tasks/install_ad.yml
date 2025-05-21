@@ -1,0 +1,40 @@
+- name: Change the hostname
+  ansible.windows.win_hostname:
+    name: "{{ inventory_hostname }}"
+  register: rename_computer
+
+# Note: Domain Services is added by the win_domain module
+- name: Install Windows Features
+  ansible.windows.win_feature:
+    name:
+      - RSAT-ADDS
+      - RSAT-AD-Powershell
+      - Windows-Server-Backup
+    state: present
+    include_sub_features: true
+    include_management_tools: true
+  register: win_feature
+
+- name: Reboot
+  ansible.windows.win_reboot:
+  when: rename_computer.reboot_required
+
+- name: Create Domain
+  microsoft.ad.domain:
+    dns_domain_name: "{{ domain }}"
+    domain_netbios_name: "{{ netbios }}"
+    safe_mode_password: "{{ safe_mode_password }}"
+    reboot: false
+  register: domain_install
+  retries: 3
+  until: domain_install is not failed
+
+# Note: Reboot must pause for a sufficient period since the server can be online and reachable, but AD and DNS
+# aren't actually ready, causing the next task (create reverse DNS lookup zone) to fail.
+- name: Reboot server
+  ansible.windows.win_reboot:
+    msg: "Installing AD. Rebooting..."
+    pre_reboot_delay: 15
+    reboot_timeout: 600
+    post_reboot_delay: 300
+  when: domain_install.reboot_required

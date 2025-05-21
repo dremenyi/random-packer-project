@@ -1,0 +1,97 @@
+---
+- name: Debug loop item
+  ansible.builtin.debug:
+    var: item
+
+- name: Search for Existing Project
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/project/{{ item.key }}"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: true
+    status_code: 200, 404
+  register: get_project
+
+# https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/project-getProject
+# 200 = Returned if the project exists and the user has permission to view it. Contains a full representation of a project in JSON format.
+# 404 = Returned if the project is not found, or the calling user does not have permission to view it.
+- name: Show get_project success
+  ansible.builtin.debug:
+    var: get_project.json
+  when: get_project.status == 200
+
+- name: Show get_project error
+  ansible.builtin.debug:
+    var: get_project.json.errorMessages
+  when: get_project.status != 200
+
+- name: Create Project BLOCK
+  when: get_project.status == 404
+  block:
+    - name: Create Project
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/project"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: POST
+        body_format: json
+        force_basic_auth: true
+        status_code: 201
+        body:
+          key: "{{ item.key }}"
+          name: "{{ item.value.name }}"
+          projectTypeKey: "service_desk"
+          projectTemplateKey: "com.atlassian.servicedesk:itil-v2-service-desk-project"
+          description: "{{ item.value.description }}"
+          lead: "{{ jira_user_name }}"
+          assigneeType: UNASSIGNED
+      register: create_project
+      changed_when: create_project.status == 201
+
+    # https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/project-createProject
+    # 201 = Returned if the project creation was successful.
+    # 400 = Returned if the request is not valid and the project could not be created.
+    # 401 = Returned if the user is not logged in.
+    # 403 = Returned if the user does not have rights to create projects.
+    # 409 = Returned if requested workflowScheme could not be assigned to created project.
+    - name: Show create_project success
+      ansible.builtin.debug:
+        var: create_project.json
+      when: create_project.status == 201
+
+    - name: Show create_project error
+      ansible.builtin.debug:
+        var: create_project.json.errorMessages
+      when: create_project.status != 201
+
+    - name: Delete first auto-generated ticket in the project
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/issue/{{ item.key }}-1"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: DELETE
+        body_format: json
+        force_basic_auth: true
+        status_code: 204, 404
+      register: delete_default_issue
+      changed_when: delete_default_issue.status == 204
+
+    # https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/issue-deleteIssue
+    # 204 = Returned if the issue was removed successfully
+    # 400 = Returned if an error occurs.
+    # 401 = Returned if the calling user is not authenticated.
+    # 403 = Returned if the calling user does not have permission to delete the issue.
+    # 404 = Returned if the issue does not exist.
+    - name: Show delete_default_issue success
+      ansible.builtin.debug:
+        var: delete_default_issue
+      when: delete_default_issue.status == 204
+
+    - name: Show delete_default_issue error
+      ansible.builtin.debug:
+        var: delete_default_issue.json.errorMessages
+      when: delete_default_issue.status != 204
+
+# End Create Project BLOCK

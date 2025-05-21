@@ -1,0 +1,72 @@
+- name: Create certs directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  become: true
+  loop:
+    - /opt/nessus/com/nessus/CA/
+    - /opt/nessus/var/nessus/CA/
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "{{ root_ca_store }}"
+    mode: "0644"
+  become: true
+  notify: "{{ update_ca_handler }}"
+
+# Force CA Trust update now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /opt/nessus/com/nessus/CA/cacert.pem
+    mode: "0644"
+    force: true
+  become: true
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /opt/nessus/lib/nessus/plugins/custom_CA.inc
+    mode: "0644"
+    force: true
+  become: true
+
+- name: Copy server certificate
+  ansible.builtin.copy:
+    content: "{{ server_cert }}"
+    dest: /opt/nessus/com/nessus/CA/servercert.pem
+    mode: "0644"
+    force: true
+  become: true
+
+- name: Copy server private key
+  ansible.builtin.copy:
+    content: "{{ server_cert_key }}"
+    dest: /opt/nessus/var/nessus/CA/serverkey.pem
+    mode: "0400"
+    force: true
+  become: true
+
+- name: Copy server chain cert
+  ansible.builtin.copy:
+    content: "{{ server_cert_key }}{{ server_cert_key }}{{ rootca_cert }}"
+    dest: /opt/nessus/com/nessus/CA/serverchain.pem
+    mode: "0400"
+    force: true
+  become: true
+
+- name: Start Nessus
+  ansible.builtin.service:
+    name: nessusd
+    state: started
+    enabled: true
+  become: true
+
+- name: Pause after start
+  ansible.builtin.pause:
+    minutes: 1

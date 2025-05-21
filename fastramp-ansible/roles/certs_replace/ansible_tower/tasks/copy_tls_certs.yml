@@ -1,0 +1,19 @@
+- name: Copy Tower cert
+  ansible.builtin.copy:
+    content: "{{ tower_cert }}"
+    dest: /etc/tower/tower.cert
+    force: true
+    mode: '0644'
+    owner: root
+    group: awx
+  become: true
+
+- name: Copy Tower cert key
+  ansible.builtin.copy:
+    content: "{{ tower_cert_key }}"
+    dest: /etc/tower/tower.key
+    force: true
+    mode: '0600'
+    owner: root
+    group: awx
+  become: true

@@ -1,0 +1,22 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Stop Jira
+  ansible.builtin.service:
+    name: jira.service
+    state: stopped
+  become: true
+
+- name: Copy TLS Certs
+  ansible.builtin.include_tasks: copy_tls_certs.yml
+
+- name: Configure TLS
+  ansible.builtin.include_tasks: configure_tls.yml
+
+- name: Start Jira
+  ansible.builtin.service:
+    name: jira.service
+    state: started
+  become: true

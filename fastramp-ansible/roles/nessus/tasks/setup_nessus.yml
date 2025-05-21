@@ -1,0 +1,82 @@
+- name: Stop Nessus
+  ansible.builtin.service:
+    name: nessusd
+    state: stopped
+  become: true
+
+- name: Install Python Expect
+  ansible.builtin.pip:
+    name: pexpect
+    state: present
+    umask: "0022"
+  become: true
+
+- name: Add Nessus user
+  ansible.builtin.expect:
+    command: /opt/nessus/sbin/nessuscli adduser nessus
+    responses:
+      (?i)Login password: "{{ nessus_password }}"
+      (?i)Login password (again): "{{ nessus_password }}"
+      (?i)Do you want this user to be a Nessus: y
+      (?i)Enter the rules for this user, and enter a BLANK LINE once you are done: ""
+      (?i)Is that ok?: y
+  become: true
+  notify: Post Setup Wait
+  changed_when: add_nessus_user.stdout_lines | select("match", ".*User added.*")
+  register: add_nessus_user
+  no_log: true
+
+- name: Add Nessus license
+  ansible.builtin.command:
+    cmd: "/opt/nessus/sbin/nessuscli fetch --register-only {{ nessus_license }}"
+  become: true
+  register: activate_nessus
+  changed_when: activate_nessus.stdout_lines | select("match", ".*Your Activation Code has been registered properly.*")
+  no_log: true
+
+- name: Enable Security Settings
+  ansible.builtin.command:
+    cmd: /opt/nessus/sbin/nessuscli fix --set "{{ item }}"
+  become: true
+  register: enable_niap
+  changed_when: enable_niap.stdout_lines | select("match", ".*Successfully set.*")
+  loop:
+    - niap_mode=enforcing
+    - strict_certificate_validation=yes
+    - ssl_mode=niap
+    - ssl_cipher_list=niap
+    - fips_mode=enforcing
+
+- name: Convert database
+  ansible.builtin.command:
+    cmd: /opt/nessus/sbin/nessuscli security niapconvert
+  become: true
+  register: niap_convert
+  changed_when: niap_convert.stdout_lines | select("match", ".*Converted.*")
+
+- name: Start Nessus
+  ansible.builtin.service:
+    name: nessusd
+    state: started
+  become: true
+
+# Flush handlers to start pause now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+# Wait for Nessus plugins to finish compiling after setup
+- name: Check CPU usage, loop until less than 10 percent
+  ansible.builtin.shell: |
+    #/bin/bash
+    set -o pipefail
+    top -bn1 | head -n 8 | tail -1 | awk '{print $9}'
+  register: cpu_usage
+  retries: 100
+  delay: 60
+  until: cpu_usage.stdout | int < 10
+  changed_when: false
+  loop: "{{ range(0, 2, 1) | list }}" # False positives can happen, this loops the task 3 times.
+
+- name: Wait
+  ansible.builtin.pause:
+    minutes: 1

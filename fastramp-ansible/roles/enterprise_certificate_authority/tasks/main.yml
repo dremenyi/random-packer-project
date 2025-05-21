@@ -1,0 +1,59 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: NGEN powershell assembly, improves startup time of powershell by 10x
+  ansible.windows.win_powershell:
+    script: |
+      $old_path = $env:path
+      try {
+        $env:path = [Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory()
+        [AppDomain]::CurrentDomain.GetAssemblies() | % {
+          if (! $_.location) {continue}
+          $Name = Split-Path $_.location -leaf
+          if ($Name.startswith("Microsoft.PowerShell.")) {
+            Write-Progress -Activity "Native Image Installation" -Status "$name"
+            ngen.exe install $_.location | % {"`t$_"}
+          }
+        }
+      } finally {
+        $env:path = $old_path
+      }
+    error_action: stop
+  register: ps_ngen
+
+- name: Remove deny login rights to Domain Admin
+  ansible.windows.win_user_right:
+    name: "{{ item }}"
+    users:
+      - "Domain Admins@{{ ansible_domain }}"
+      - "Enterprise Admins@{{ ansible_domain }}"
+    action: remove
+  loop:
+    - SeDenyInteractiveLogonRight
+    - SeDenyBatchLogonRight
+    - SeDenyNetworkLogonRight
+  when: benchmark == 'stig'
+
+- name: Grant login rights to Domain Admin
+  ansible.windows.win_user_right:
+    name: "{{ item }}"
+    users:
+      - "Domain Admins@{{ ansible_domain }}"
+      - "Enterprise Admins@{{ ansible_domain }}"
+    action: add
+  loop:
+    - SeInteractiveLogonRight
+    - SeBatchLogonRight
+    - SeNetworkLogonRight
+  when: benchmark == 'stig'
+
+- name: Install and Configure Enterprise CA
+  ansible.builtin.include_tasks: install_ent_ca.yml
+
+- name: Configure Certificate Templates
+  ansible.builtin.include_tasks: config_cert_templates.yml
+
+- name: Get Root CA Certificate
+  ansible.builtin.include_tasks: root_ca_cert.yml

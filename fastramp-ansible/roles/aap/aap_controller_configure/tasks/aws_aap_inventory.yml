@@ -1,0 +1,127 @@
+- name: Add AWS AAP inventory
+  awx.awx.inventory:
+    name: "{{ item }}"
+    organization: "{{ aap_org_name }}"
+    state: present
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+  loop:
+    - Full AWS Inventory
+
+- name: Add Management Inventory Source
+  awx.awx.inventory_source:
+    name: Amazon EC2 Source - Management
+    inventory: "{{ item }}"
+    overwrite: true
+    overwrite_vars: false
+    update_on_launch: true
+    organization: "{{ aap_org_name }}"
+    state: present
+    source: ec2
+    source_vars:
+      regions: "{{ aws_region }}"
+      hostnames: tag:Name
+      ansible_host: "tags.Name+.{{ ansible_domain }}"
+      keyed_groups:
+        - key: tags['Role']
+          separator: ""
+        - key: tags['SecondaryRole']
+          separator: ""
+        - key: tags['OSFamily']
+          separator: ""
+        - key: tags['Benchmark']
+          separator: ""
+      groups:
+        linux: (tags['OSType'] is defined and tags['OSType']=='Linux')
+        windows: (tags['OSType'] is defined and tags['OSType']=='Windows')
+    verbosity: 1
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+  loop:
+    - Full AWS Inventory
+
+- name: Add Production Inventory Source
+  awx.awx.inventory_source:
+    name: Amazon EC2 Source - Production
+    inventory: "{{ item }}"
+    overwrite: true
+    overwrite_vars: false
+    update_on_launch: true
+    organization: "{{ aap_org_name }}"
+    state: present
+    source: ec2
+    source_vars:
+      iam_role_arn: "{{ prod_account_role_arn }}"
+      regions: "{{ aws_region }}"
+      hostnames: tag:Name
+      ansible_host: "tags.Name+.{{ ansible_domain }}"
+      keyed_groups:
+        - key: tags['Role']
+          separator: ""
+        - key: tags['SecondaryRole']
+          separator: ""
+        - key: tags['OSFamily']
+          separator: ""
+        - key: tags['Benchmark']
+          separator: ""
+      groups:
+        linux: (tags['OSType'] is defined and tags['OSType']=='Linux')
+        windows: (tags['OSType'] is defined and tags['OSType']=='Windows')
+    verbosity: 1
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true
+  loop:
+    - Full AWS Inventory
+
+- name: Update all inventory sources
+  awx.awx.schedule:
+    name: "{{ item }}"
+    state: present
+    rrule: "DTSTART;TZID=America/New_York:20200101T000000 RRULE:FREQ=MINUTELY;INTERVAL=5"
+    unified_job_template: "{{ item }}"
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+  register: result
+  loop:
+    - "Amazon EC2 Source - Management"
+    - "Amazon EC2 Source - Production"
+  ignore_errors: true
+
+- name: Update all inventory sources
+  awx.awx.inventory_source_update:
+    inventory: "Full AWS Inventory"
+    inventory_source: "{{ item }}"
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true
+  loop:
+    - "Amazon EC2 Source - Management"
+    - "Amazon EC2 Source - Production"
+
+- name: Add Smart Inventory for Windows
+  awx.awx.inventory:
+    name: Full AWS Inventory Windows
+    organization: "{{ aap_org_name }}"
+    kind: smart
+    host_filter: groups__name=Windows
+    state: present
+    variables:
+      ansible_connection: winrm
+      ansible_winrm_transport: kerberos
+      ansible_winrm_scheme: http
+      ansible_port: 5985
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true
+
+- name: Add Smart Inventory for Linux
+  awx.awx.inventory:
+    name: Full AWS Inventory Linux
+    organization: "{{ aap_org_name }}"
+    kind: smart
+    host_filter: groups__name=Linux
+    state: present
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true

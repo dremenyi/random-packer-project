@@ -1,0 +1,146 @@
+- name: Add AWS tower inventory
+  ansible.tower.tower_inventory:
+    name: "{{ item }}"
+    organization: "{{ tower_org_name }}"
+    state: present
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+  loop:
+    - Full AWS Inventory
+
+- name: Add Management Inventory Source
+  ansible.tower.tower_inventory_source:
+    name: Amazon EC2 Source - Management
+    inventory: "{{ item }}"
+    overwrite: true
+    overwrite_vars: false
+    update_on_launch: true
+    organization: "{{ tower_org_name }}"
+    state: present
+    source: ec2
+    source_vars:
+      regions: "{{ aws_region }}"
+      hostnames: tag:Name
+      ansible_host: "tags.Name+.{{ ansible_domain }}"
+      keyed_groups:
+        - key: tags['Role']
+          separator: ""
+        - key: tags['SecondaryRole']
+          separator: ""
+      groups:
+        Linux: (tags['OSType'] is defined and tags['OSType']=='Linux')
+        Windows: (tags['OSType'] is defined and tags['OSType']=='Windows')
+    verbosity: 1
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+  loop:
+    - Full AWS Inventory
+
+- name: Add Production Inventory Source
+  ansible.tower.tower_inventory_source:
+    name: Amazon EC2 Source - Production
+    inventory: "{{ item }}"
+    overwrite: true
+    overwrite_vars: false
+    update_on_launch: true
+    organization: "{{ tower_org_name }}"
+    state: present
+    source: ec2
+    source_vars:
+      iam_role_arn: "{{ prod_account_role_arn }}"
+      regions: "{{ aws_region }}"
+      hostnames: tag:Name
+      ansible_host: "tags.Name+.{{ ansible_domain }}"
+      keyed_groups:
+        - key: tags['Role']
+          separator: ""
+        - key: tags['SecondaryRole']
+          separator: ""
+      groups:
+        Linux: (tags['OSType'] is defined and tags['OSType']=='Linux')
+        Windows: (tags['OSType'] is defined and tags['OSType']=='Windows')
+    verbosity: 1
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+  loop:
+    - Full AWS Inventory
+
+- name: Add Staging Inventory
+  ansible.tower.tower_inventory_source:
+    name: Amazon EC2 Source - Staging
+    inventory: "{{ item }}"
+    overwrite: true
+    overwrite_vars: false
+    update_on_launch: true
+    organization: "{{ tower_org_name }}"
+    state: present
+    source: ec2
+    source_vars:
+      iam_role_arn: "{{ staging_account_role_arn }}"
+      regions: "{{ aws_region }}"
+      hostnames: tag:Name
+      ansible_host: "tags.Name+.{{ ansible_domain }}"
+      keyed_groups:
+        - key: tags['Role']
+          separator: ""
+        - key: tags['SecondaryRole']
+          separator: ""
+      groups:
+        Linux: (tags['OSType'] is defined and tags['OSType']=='Linux')
+        Windows: (tags['OSType'] is defined and tags['OSType']=='Windows')
+    verbosity: 1
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+  loop:
+    - Full AWS Inventory
+
+- name: Update all inventory sources
+  ansible.tower.tower_schedule:
+    name: "{{ item }}"
+    state: present
+    rrule: "DTSTART;TZID=America/New_York:20200101T000000 RRULE:FREQ=MINUTELY;INTERVAL=5"
+    unified_job_template: "{{ item }}"
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+  register: result
+  loop:
+    - "Amazon EC2 Source - Management"
+    - "Amazon EC2 Source - Staging"
+    - "Amazon EC2 Source - Production"
+  ignore_errors: true
+
+- name: Update all inventory sources
+  ansible.tower.tower_inventory_source_update:
+    inventory: "Full AWS Inventory"
+    inventory_source: "{{ item }}"
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+  loop:
+    - "Amazon EC2 Source - Management"
+    - "Amazon EC2 Source - Staging"
+    - "Amazon EC2 Source - Production"
+
+- name: Add Smart Inventory for Windows
+  ansible.tower.tower_inventory:
+    name: Full AWS Inventory Windows
+    organization: "{{ tower_org_name }}"
+    kind: smart
+    host_filter: groups__name=Windows
+    state: present
+    variables:
+      ansible_connection: winrm
+      ansible_winrm_transport: kerberos
+      ansible_winrm_scheme: http
+      ansible_port: 5985
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+
+- name: Add Smart Inventory for Linux
+  ansible.tower.tower_inventory:
+    name: Full AWS Inventory Linux
+    organization: "{{ tower_org_name }}"
+    kind: smart
+    host_filter: groups__name=Linux
+    state: present
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"

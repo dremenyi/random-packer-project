@@ -1,0 +1,19 @@
+AddressAndPortsScreen.NewNode=True
+UpgradeVerificationScreen.Overwrite=False
+{% if dsm_license is defined %}
+LicenseScreen.License.-1={{ dsm_license }}
+{% endif %}
+DatabaseScreen.DatabaseType=PostgreSQL
+DatabaseScreen.Hostname={{ db_endpoint }}
+DatabaseScreen.DatabaseName=trenddsm
+DatabaseScreen.Username=trenddsm
+DatabaseScreen.Password={{ db_password }}
+AddressAndPortsScreen.ManagerPort=4119
+AddressAndPortsScreen.HeartbeatPort=4120
+CredentialsScreen.Administrator.Username=masteradmin
+CredentialsScreen.Administrator.Password={{ dsm_admin_password }}
+CredentialsScreen.UseStrongPasswords=True
+SecurityUpdateScreen.UpdateComponents=True
+SoftwareUpdateScreen.UpdateSoftware=True
+RelayScreen.Install=True
+SmartProtectionNetworkScreen.EnableFeedback=False

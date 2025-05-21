@@ -1,0 +1,64 @@
+[aws_sqs_based_s3://Cloudtrail]
+aws_account = splunkhf1_role
+index = aws
+interval = 300
+private_endpoint_enabled = 0
+s3_file_decoder = CloudTrail
+sourcetype = aws:cloudtrail
+sqs_batch_size = 10
+sqs_queue_region = {{ aws_region }}
+sqs_queue_url = https://{{ sqs_fips_endpoint }}.{{ aws_region }}.amazonaws.com/{{ mgmt_account_id }}/{{ resource_prefix }}-{{ aws_region }}-cloudtrail-event-notification-queue
+sqs_sns_validation = 0
+using_dlq = 1
+
+[aws_sqs_based_s3://ELB_Access_Logs]
+aws_account = splunkhf1_role
+index = aws
+interval = 300
+private_endpoint_enabled = 0
+s3_file_decoder = ELBAccessLogs
+sourcetype = aws:elb:accesslogs
+sqs_batch_size = 10
+sqs_queue_region = {{ aws_region }}
+sqs_queue_url = https://{{ sqs_fips_endpoint }}.{{ aws_region }}.amazonaws.com/{{ mgmt_account_id }}/{{ resource_prefix }}-{{ aws_region }}-elb-accesslogs-event-notification-queue
+sqs_sns_validation = 0
+using_dlq = 1
+
+[aws_sqs_based_s3://S3_Access_Logs]
+aws_account = splunkhf1_role
+index = aws
+interval = 300
+private_endpoint_enabled = 0
+s3_file_decoder = S3AccessLogs
+sourcetype = aws:s3:accesslogs
+sqs_batch_size = 10
+sqs_queue_region = {{ aws_region }}
+sqs_queue_url = https://{{ sqs_fips_endpoint }}.{{ aws_region }}.amazonaws.com/{{ mgmt_account_id }}/{{ resource_prefix }}-{{ aws_region }}-s3-accesslogs-event-notification-queue
+sqs_sns_validation = 0
+using_dlq = 1
+
+[aws_sqs_based_s3://VPC_Flow_Logs]
+aws_account = splunkhf1_role
+index = aws
+interval = 300
+private_endpoint_enabled = 0
+s3_file_decoder = CustomLogs
+sourcetype = aws:cloudwatchlogs:vpcflow
+sqs_batch_size = 10
+sqs_queue_region = {{ aws_region }}
+sqs_queue_url = https://{{ sqs_fips_endpoint }}.{{ aws_region }}.amazonaws.com/{{ mgmt_account_id }}/{{ resource_prefix }}-{{ aws_region }}-flowlogs-event-notification-queue
+sqs_sns_validation = 0
+using_dlq = 1
+
+[aws_sqs_based_s3://WAF_Logs]
+aws_account = splunkhf1_role
+index = aws
+interval = 300
+private_endpoint_enabled = 0
+s3_file_decoder = CustomLogs
+sourcetype = aws:waf
+sqs_batch_size = 10
+sqs_queue_region = {{ aws_region }}
+sqs_queue_url = https://{{ sqs_fips_endpoint }}.{{ aws_region }}.amazonaws.com/{{ mgmt_account_id }}/aws-waf-logs-{{ resource_prefix }}-{{ aws_region }}-event-notification-queue
+sqs_sns_validation = 0
+using_dlq = 1

@@ -1,0 +1,36 @@
+---
+# Install/Configure AD
+time_server: time.nist.gov
+
+# Organizational Units
+# Note: OUs are created in order (top-down) from the lists here
+toplvl_ous:
+  - All Users
+  - Servers
+business_units:
+  - Management
+user_ous:
+  - Administrators
+  - Regular Users
+  - Service Accounts
+  - Security Groups
+server_ous:
+  - Development
+  - Production
+sub_ous:
+  - Linux
+  - Windows
+
+# Default Groups and Users
+ad_groups:
+  - AnsibleService
+  - LinuxAdmins
+  - WindowsAdmins
+  - VPNUsers
+  - VulnScan
+
+# https://www.authlite.com/downloads/
+# Note: Authlite does not provide a hash, it is simply calculated after download and only ensures that what you install in production
+# is the same as what was installed in our sandbox.
+authlite_download_url: https://s3.authlite.com/downloads/2.4/AuthLite_installer_x64.msi
+authlite_installer_hash: 20fa5fc513df12d02be758b768835d5043ad5953b07b7b9f50e7ed62b28ff837

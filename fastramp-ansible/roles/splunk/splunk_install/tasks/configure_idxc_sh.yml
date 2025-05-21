@@ -1,0 +1,56 @@
+- name: Configure Replication settings server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: replication_port-ssl://8080
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "disabled", value: "false" }
+    - { option: "rootCA", value: "/opt/splunk/etc/auth/certs/cacert.pem" }
+    - { option: "serverCert", value: "/opt/splunk/etc/auth/certs/server.pem" }
+    - { option: "sslVersions", value: "tls1.2" }
+
+- name: Configure sslPassword server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: replication_port-ssl://8080
+    option: sslPassword
+    value: "{{ ssl_password }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  no_log: true
+  notify: restart splunk
+
+- name: Configure Clustering settings server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: clustering
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "manager_uri", value: "{{ splunk_uri_cm }}" }
+    - { option: "mode", value: "searchhead" }
+    - { option: "cluster_label", value: "idxclusterSSL" }
+
+- name: Configure pass4symmKey server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: clustering
+    option: pass4SymmKey
+    value: "{{ pass_4_symm_key }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  no_log: true
+  notify: restart splunk

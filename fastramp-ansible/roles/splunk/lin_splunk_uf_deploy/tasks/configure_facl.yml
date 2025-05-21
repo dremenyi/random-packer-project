@@ -1,0 +1,41 @@
+- name: Set default facl to allow splunk user to read /var/log
+  ansible.posix.acl:
+    path: /var/log
+    entity: "{{ splunk_user }}"
+    etype: user
+    permissions: rX
+    default: "{{ item }}"
+    recursive: true
+    state: present
+  become: true
+  loop:
+    - true
+    - false
+
+- name: Add logrotate script to enforce splunk user facls
+  ansible.builtin.template:
+    src: splunk_facl.j2
+    dest: /etc/logrotate.d/splunk_facl
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+
+- name: Check if auditd.conf is present
+  ansible.builtin.stat:
+    path: /etc/audit/auditd.conf
+  register: result_auditd_conf
+  become: true
+
+- name: Allow splunk user to read /var/log/audit.log
+  community.general.ini_file:
+    path: /etc/audit/auditd.conf
+    section: null
+    option: log_group
+    value: "{{ splunk_user }}"
+    mode: "0644"
+  become: true
+  notify:
+    - restart redhat auditd service
+    - restart non-redhat auditd service
+  when: result_auditd_conf.stat.exists

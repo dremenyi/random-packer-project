@@ -1,0 +1,90 @@
+- name: Install Required Packages
+  ansible.builtin.package:
+    name: fontconfig
+    state: present
+  become: true
+
+- name: Create Temp file for Jira Installer
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .bin
+  register: jira_installer_tempfile
+
+- name: Create Temp file for Jira varfile
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .varfile
+  register: jira_varfile_tempfile
+
+- name: Download Jira installer
+  ansible.builtin.get_url:
+    url: "{{ jira_download_url }}"
+    dest: "{{ jira_installer_tempfile.path }}"
+    force: true
+    mode: "0755"
+
+- name: Check Jira installer file hash
+  ansible.builtin.stat:
+    path: "{{ jira_installer_tempfile.path }}"
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: jira_downloaded_installer_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - jira_downloaded_installer_file.stat.checksum == jira_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ jira_downloaded_installer_file.stat.checksum }}, the expected hash is {{ jira_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Copy Jira varfile from template
+  ansible.builtin.template:
+    src: jira.varfile.j2
+    dest: "{{ jira_varfile_tempfile.path }}"
+    force: true
+    mode: "0644"
+
+- name: Run Jira Installer
+  ansible.builtin.command: "{{ jira_installer_tempfile.path }} -q -varfile {{ jira_varfile_tempfile.path }}"
+  args:
+    creates: /opt/atlassian/jira
+  register: jira_installer
+  become: true
+  changed_when: jira_installer.stdout_lines | select("match", ".*Finishing installation.*")
+
+- name: Configure Jira Service Unit File
+  ansible.builtin.template:
+    src: jira.service.j2
+    dest: /lib/systemd/system/jira.service
+    mode: "0664"
+    force: true
+  become: true
+  notify: Reload systemctl
+
+# Flush handlers to trigger systemctl reload now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Remove Jira installer Tempfile
+  ansible.builtin.file:
+    path: "{{ jira_installer_tempfile.path }}"
+    state: absent
+
+- name: Remove Jira varfile Tempfile
+  ansible.builtin.file:
+    path: "{{ jira_varfile_tempfile.path }}"
+    state: absent
+
+- name: Create Jira group
+  ansible.builtin.group:
+    name: jira
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Correct Jira group membership
+  ansible.builtin.user:
+    name: jira
+    group: jira
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'

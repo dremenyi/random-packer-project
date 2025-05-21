@@ -1,0 +1,4 @@
+---
+
+jira_api_url: https://jira.{{ ansible_domain }}:8443/rest/api/2
+jira_user_name: admin

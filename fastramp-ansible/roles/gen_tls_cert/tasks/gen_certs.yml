@@ -1,0 +1,108 @@
+- name: OpenSSL - Create private key
+  community.crypto.openssl_privatekey:
+    size: "{{ key_length | default(4096) }}"
+    mode: "0400"
+    force: true
+    passphrase: "{{ ssl_password | default(omit) }}"
+    path: "{{ application_pkey_tempfile.path }}"
+    cipher: "{{ private_key_cipher | default(omit) }}"
+    format: "{{ private_key_format }}"
+
+- name: Create dns_short_hostname
+  ansible.builtin.set_fact:
+    dns_short_hostname: "{{ dns_short_hostname | default([]) + [item] }}"
+  with_sequence: "start=1 end={{ instance_count }} format=DNS:{{ app_name }}%s"
+
+- name: Create dns_fqdn
+  ansible.builtin.set_fact:
+    dns_fqdn: "{{ dns_fqdn | default([]) + [item] }}"
+  with_sequence: "start=1 end={{ instance_count }} format=DNS:{{ app_name }}%s.{{ ansible_domain }}"
+
+- name: Create Certificate Signing Request (CSR)
+  community.crypto.openssl_csr:
+    path: "{{ application_csr_tempfile.path }}"
+    privatekey_path: "{{ application_pkey_tempfile.path }}"
+    privatekey_passphrase: "{{ ssl_password | default(omit) }}"
+    common_name: "{{ app_name }}.{{ ansible_domain }}"
+    country_name: US
+    organization_name: Coalfire
+    organizational_unit_name: IT
+    locality_name: Denver
+    state_or_province_name: Colorado
+    subject_alt_name: "DNS:{{ app_name }},DNS:{{ app_name }}.{{ ansible_domain }},{{ dns_short_hostname | join(',') }},{{ dns_fqdn | join(',') }}"
+    key_usage:
+      - digitalSignature
+      - keyAgreement
+    extended_key_usage: "{{ extended_key_usage }}"
+    mode: "0644"
+
+- name: Slurp the CSR
+  ansible.builtin.slurp:
+    src: "{{ application_csr_tempfile.path }}"
+  register: server_csr
+
+- name: Copy CSR contents
+  ansible.windows.win_copy:
+    content: "{{ server_csr['content'] | b64decode }}"
+    dest: "{{ win_tempfile_csr.path }}"
+  delegate_to: ca1
+
+  # Note: This is going to be the single most frustrating task to troubleshoot.  Certreq.exe is NOT automation friendly.
+  # The most common problem is that a parameter will be incorrect or missing and a prompt will be thrown causing the task to hang forever,
+  # this happens even if the task in question results in an error.  Try to run these commands manually on the server in question in Powershell.
+  # Another item to check is whether or not the account you're running Ansible as has "Enroll" permissions for the template.
+  # Also seems to fail if variable is used to supply "CertificateTemplate"
+- name: Submit Cert Request
+  ansible.windows.win_powershell:
+    script: |
+      $Config_Temp1 = certutil.exe -dump | Select-String -Pattern "Config:"
+      $Config_Temp2 = $Config_Temp1 -Split ":"
+      $Config = $Config_Temp2[1].Trim()
+      $Ansible.result = certreq.exe -f -config "$Config" -attrib "CertificateTemplate:multipurpose" -Submit "{{ win_tempfile_csr.path }}" `
+      "{{ win_tempfile_cer.path }}"
+    error_action: stop
+  register: certreq_result
+  changed_when: certreq_result.result | select("match", ".*Certificate retrieved.*")
+  delegate_to: ca1
+
+- name: Slurp Certificate
+  ansible.builtin.slurp:
+    src: "{{ win_tempfile_cer.path }}"
+  register: server_cer
+  delegate_to: ca1
+
+- name: Copy Certificate
+  ansible.builtin.copy:
+    content: "{{ server_cer['content'] | b64decode }}"
+    dest: "{{ application_cer_tempfile.path }}"
+    mode: "0644"
+    force: true
+
+- name: Convert private key to PKCS8 format without passphrase
+  community.crypto.openssl_privatekey_convert:
+    src_path: "{{ application_pkey_tempfile.path }}"
+    src_passphrase: "{{ ssl_password }}"
+    dest_path: "{{ application_pkey_unenc_tempfile.path }}"
+    format: pkcs8
+  when: create_unencrypted
+
+- name: Sanitize Certificate file
+  ansible.builtin.command: "dos2unix {{ application_cer_tempfile.path }}"
+  register: sanitize_server_cert
+  changed_when: '"converting file" in sanitize_server_cert.stderr' # This program puts normal progress into stderr stream.
+
+- name: Slurp Sanitized Certificate
+  ansible.builtin.slurp:
+    src: "{{ application_cer_tempfile.path }}"
+  register: server_cer_sanitized
+
+- name: Slurp Private Key
+  ansible.builtin.slurp:
+    src: "{{ application_pkey_tempfile.path }}"
+  register: application_pkey
+
+- name: Slurp Unencrypted Private Key
+  ansible.builtin.slurp:
+    src: "{{ application_pkey_unenc_tempfile.path }}"
+  register: application_pkey_unenc
+  when: create_unencrypted

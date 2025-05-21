@@ -1,0 +1,40 @@
+- name: Create central store for GPOs
+  community.windows.win_robocopy:
+    src: C:\Windows\PolicyDefinitions
+    dest: C:\Windows\SYSVOL\domain\Policies\PolicyDefinitions
+    flags: /xc /xn /xo /R:5 /W:1 /E
+
+- name: Create App Directory
+  ansible.windows.win_file:
+    path: "{{ app_dir }}"
+    state: directory
+
+- name: Base GPO tasks
+  ansible.builtin.include_tasks: base_gpo_tasks.yml
+
+- name: Coalfire Security Override GPO tasks
+  ansible.builtin.include_tasks: override_gpo_tasks.yml
+
+- name: Authlite GPO tasks
+  ansible.builtin.include_tasks: authlite_gpo_tasks.yml
+  when: install_authlite | bool
+
+- name: CIS GPO tasks
+  ansible.builtin.include_tasks: cis_gpo_tasks.yml
+  when: benchmark == 'cis'
+
+- name: STIG GPO tasks
+  ansible.builtin.include_tasks: stig_gpo_tasks.yml
+  when: benchmark == 'stig'
+
+- name: Force GPUpdate
+  ansible.windows.win_command:
+    cmd: gpupdate.exe /force
+  register: gpupdate
+  changed_when: gpupdate.stdout_lines | select("match", ".*Computer Policy update has completed successfully.*")
+
+- name: Disable default Administrator (SID 500) Account
+  microsoft.ad.user:
+    name: xadm
+    state: present
+    enabled: false

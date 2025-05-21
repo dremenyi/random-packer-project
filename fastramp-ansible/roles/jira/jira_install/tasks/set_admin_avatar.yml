@@ -1,0 +1,44 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    - name: Get User Avatars
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/user/avatars?username={{ jira_user_name }}"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: GET
+        body_format: json
+        force_basic_auth: true
+        status_code: 200
+      register: get_user_avatars
+      changed_when: false
+
+    - name: Check for Set Avatar
+      ansible.builtin.set_fact:
+        search_avatar: "{{ get_user_avatars.json.system | selectattr('selected', 'equalto', true) }}"
+
+    # Set Avatar, if one isn't set
+    - name: Set Avatar BLOCK
+      when: search_avatar | length == 0
+      block:
+        - name: Set Admin User Avatar
+          ansible.builtin.uri:
+            url: "{{ jira_api_url }}/user/avatar?username={{ jira_user_name }}"
+            user: "{{ jira_user_name }}"
+            url_password: "{{ jira_password }}"
+            method: PUT
+            body_format: json
+            force_basic_auth: true
+            status_code: 204
+            body:
+              isSystemAvatar: true
+              isSelected: true
+              isDeletable: false
+              selected: true
+              id: 10334
+          register: set_admin_user_avatar
+          changed_when: set_admin_user_avatar.status == 204
+
+        - name: Debug set_admin_user_avatar
+          debug:
+            var: set_admin_user_avatar

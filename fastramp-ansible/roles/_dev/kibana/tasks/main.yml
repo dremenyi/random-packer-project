@@ -1,0 +1,38 @@
+---
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install kibana
+  include_tasks: install.yml
+  when: '"kibana.service" not in ansible_facts.services'
+
+- name: Check for root CA cert
+  ansible.builtin.stat:
+    path: /etc/kibana/certs/cacert.pem
+  register: root_ca_file
+  become: true
+
+- name: Deploy Root CA Cert
+  include_tasks: deploy_root_ca.yml
+  when: not root_ca_file.stat.exists
+
+- name: Copy TLS Certs
+  include_tasks: copy_tls_certs.yml
+
+- name: Check port 5601
+  ansible.builtin.wait_for:
+    port: 5601
+    timeout: 5
+  register: port_check
+  ignore_errors: true
+
+- name: Configure kibana
+  include_tasks: configure.yml
+  when: port_check is failed
+
+# Assume failure if the port is not open and listening
+- name: Check port 5601
+  ansible.builtin.wait_for:
+    port: 5601
+    timeout: 5

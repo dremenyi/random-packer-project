@@ -1,0 +1,15 @@
+[tower]
+tower1.{{ ansible_domain }}
+tower2.{{ ansible_domain }}
+tower3.{{ ansible_domain }}
+
+[database]
+[all:vars]
+pg_host="{{ db_endpoint }}"
+pg_port='5432'
+pg_database='tower'
+pg_username='tower'
+
+web_server_ssl_cert=/tmp/twrinst/tower.cert
+web_server_ssl_key=/tmp/twrinst/tower.key
+custom_ca_cert=/tmp/twrinst/rootca.crt

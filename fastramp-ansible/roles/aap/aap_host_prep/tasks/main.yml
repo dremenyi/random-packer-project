@@ -1,0 +1,21 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Allow linux admins passwordless sudo
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: "^%linuxadmins"
+    line: "%linuxadmins ALL=(ALL) NOPASSWD: ALL"
+    validate: "/usr/sbin/visudo -cf %s"
+  become: true
+
+- name: Allow SSH Root Login
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "(?i)^#?PermitRootLogin"
+    line: "PermitRootLogin yes"
+  become: true
+  notify: restart sshd

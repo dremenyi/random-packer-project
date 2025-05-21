@@ -1,0 +1,82 @@
+- name: AL2 Install Block
+  when: ansible_facts['distribution'] == 'Amazon'
+  block:
+    # Note: Postgres 9 is too old, if not updated will give error "unable to connect to database: SCRAM authentication requires libpq version 10 or above"
+    - name: Add PostGreSQL GPG Key
+      ansible.builtin.rpm_key:
+        state: present
+        key: https://apt.postgresql.org/pub/repos/yum/RPM-GPG-KEY-PGDG-14
+      become: true
+
+    - name: Add PostGres repository
+      ansible.builtin.yum_repository:
+        name: pgdg14
+        description: PostGres 14 Repo
+        baseurl: https://download.postgresql.org/pub/repos/yum/14/redhat/rhel-7-x86_64
+        enabled: true
+        gpgcheck: true
+      become: true
+
+    - name: Install llvm-toolset-7-clang Prerequisites
+      ansible.builtin.yum:
+        name: "{{ item }}"
+        state: present
+      become: true
+      loop:
+        - http://mirror.centos.org/centos/7/extras/x86_64/Packages/centos-release-scl-rh-2-3.el7.centos.noarch.rpm
+        - http://mirror.centos.org/centos/7/extras/x86_64/Packages/centos-release-scl-2-3.el7.centos.noarch.rpm
+
+    - name: Install llvm-toolset-7-clang
+      ansible.builtin.yum:
+        name: http://mirror.centos.org/centos/7/sclo/x86_64/rh/Packages/l/llvm-toolset-7-clang-4.0.1-1.el7.x86_64.rpm
+        state: present
+      become: true
+
+    - name: AL2 - Install Postgres Packages
+      ansible.builtin.package:
+        name:
+          - gcc
+          - postgresql14-devel
+          - postgresql-devel # Still needed to install psycopg2
+          - python3-devel
+        state: present
+      become: true
+
+- name: RHEL - Install Postgres Packages
+  ansible.builtin.package:
+    name:
+      - gcc
+      - postgresql-devel
+      - python3.11-devel
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'RedHat'
+
+- name: Ubuntu - Install Postgres Packages
+  ansible.builtin.package:
+    name:
+      - gcc
+      - libpq-dev
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Install psycopg2
+  ansible.builtin.pip:
+    name: psycopg2
+    state: present
+    umask: "0022"
+  become: true
+
+- name: Create Required Extensions
+  community.postgresql.postgresql_ext:
+    db: gitlabhq_production
+    name: "{{ item }}"
+    login_host: "{{ db_endpoint }}"
+    login_user: gitlab
+    login_password: "{{ db_password }}"
+    state: present
+  loop:
+    - pg_trgm
+    - btree_gist
+    - plpgsql

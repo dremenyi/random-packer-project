@@ -1,0 +1,17 @@
+- name: Delegate to tower1 BLOCK
+  delegate_to: tower1
+  block:
+    - name: Copy SQS cleanup script from template
+      ansible.builtin.template:
+        src: sqs-ec2term-cleanup.sh.j2
+        dest: /root/sqs-ec2term-cleanup.sh
+        force: true
+        mode: "0744"
+      become: true
+
+    - name: Creates SQS Cleanup cron job
+      ansible.builtin.cron:
+        name: SQS Cleanup
+        user: root
+        job: "/root/sqs-ec2term-cleanup.sh {{ aws_region }} {{ ec2_term_queue_name }} > /dev/null 2>&1"
+      become: true

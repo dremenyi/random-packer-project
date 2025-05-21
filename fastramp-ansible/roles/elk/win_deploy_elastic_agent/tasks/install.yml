@@ -1,0 +1,122 @@
+- name: Set TLS
+  ansible.windows.win_powershell:
+    script: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    error_action: stop
+
+- name: Download Elastic Agent Installer
+  ansible.windows.win_get_url:
+    url: "{{ download_url }}"
+    dest: "C:\\Windows\\Temp\\{{ elastic_installer }}"
+    force: true
+
+- name: Download Elastic Agent Installer SHA512 Hash
+  ansible.windows.win_get_url:
+    url: "{{ download_url }}.sha512"
+    dest: "C:\\Windows\\Temp\\{{ elastic_installer_file_hash_name }}"
+    force: true
+
+- name: Slurp Hash file
+  ansible.builtin.slurp:
+    src: "C:\\Windows\\Temp\\{{ elastic_installer_file_hash_name }}"
+  register: slurp_file_hash
+
+- name: Set elastic_installer_hash
+  ansible.builtin.set_fact:
+    elastic_installer_hash: "{{ slurp_file_hash['content'] | b64decode | split(' ') | first }}"
+
+- name: Check SHA512 Hash of file with stat
+  ansible.windows.win_stat:
+    path: "C:\\Windows\\Temp\\{{ elastic_installer }}"
+    get_checksum: true
+    checksum_algorithm: sha512
+  register: elastic_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - elastic_file.stat.checksum == elastic_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ elastic_file.stat.checksum }}, the expected hash is {{ elastic_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+# Note: Nuget and PowerShellGet must be updated to meet minimums needed by win_psmodule
+# https://docs.ansible.com/ansible/latest/collections/community/windows/win_psmodule_module.html#notes
+- name: Ensure the required NuGet package provider version is updated
+  ansible.windows.win_powershell:
+    script: |
+      try
+      {
+        $version = Get-PackageProvider -Name Nuget | Select-Object -ExpandProperty Version
+        if( $version -lt 2.8.5.201 ){
+          Find-PackageProvider -Name Nuget -ForceBootstrap -IncludeDependencies -Force
+          $Ansible.Changed = $true
+        }
+        else{
+          $Ansible.Changed = $false
+        }
+      }
+      catch
+      {
+        Find-PackageProvider -Name Nuget -ForceBootstrap -IncludeDependencies -Force
+        $Ansible.Changed = $true
+      }
+    error_action: stop
+  register: install_nuget
+
+# Note: The Get-InstalledModule cmdlet returns a generic error, so a specific type of error cannot be caught.
+# I'm using a generic try/catch statement to handle the expected generic error (module 'PowerShellGet' does not exist)
+- name: Ensure the required PowerShellGet package provider version is present
+  ansible.windows.win_powershell:
+    script: |
+      try
+      {
+        $version = Get-InstalledModule -Name PowerShellGet | Select-Object -ExpandProperty Version
+        if( $version -lt 1.6.0 ){
+        Install-Module -Name PowerShellGet -AllowClobber -Force -Verbose
+        $Ansible.Changed = $true
+        }
+        else{
+          $Ansible.Changed = $false
+        }
+      }
+      catch
+      {
+        Write-Verbose "PowerShellGet not installed"
+        Install-Module -Name PowerShellGet -AllowClobber -Force -Verbose
+        $Ansible.Changed = $true
+      }
+    error_action: stop
+  register: install_powershellget
+
+- name: Install PSCX
+  community.windows.win_psmodule:
+    name: Pscx
+    state: present
+    allow_clobber: true
+
+- name: Recursively decompress
+  community.windows.win_unzip:
+    src: "C:\\Windows\\Temp\\{{ elastic_installer }}"
+    dest: "C:\\Windows\\Temp\\elastic_agent_files"
+    recurse: true
+    delete_archive: true
+
+- name: Set enrollment token name
+  ansible.builtin.include_tasks: set_enrollment_token_name.yml
+
+- name: Install Elastic Agent
+  ansible.windows.win_command:
+    cmd: "elastic-agent.exe install --url={{ fleet_server_url }} --non-interactive --enrollment-token={{ enrollment_token }}"
+    chdir: "C:\\Windows\\Temp\\elastic_agent_files\\{{ elastic_installer | regex_replace('\\.zip', '') }}"
+  register: install_elastic
+  changed_when: install_elastic.stdout_lines | select("match", ".*Elastic Agent has been successfully installed.*")
+  no_log: true
+
+- name: Cleanup Elastic Agent files
+  ansible.windows.win_file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "C:\\Windows\\Temp\\elastic_agent_files"
+    - "C:\\Windows\\Temp\\{{ elastic_installer }}"
+    - "C:\\Windows\\Temp\\{{ elastic_installer_file_hash_name }}"

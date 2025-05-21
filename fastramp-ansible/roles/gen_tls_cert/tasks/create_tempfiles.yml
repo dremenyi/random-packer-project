@@ -1,0 +1,38 @@
+- name: Create tempfile for application private key
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .key
+  register: application_pkey_tempfile
+
+- name: Create tempfile for CSR
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .csr
+  register: application_csr_tempfile
+
+- name: Create temp file on CA for CSR
+  ansible.windows.win_tempfile:
+    state: file
+    suffix: temp
+  register: win_tempfile_csr
+  delegate_to: ca1
+
+- name: Create temp file on CA for cert
+  ansible.windows.win_tempfile:
+    state: file
+    suffix: temp
+  register: win_tempfile_cer
+  delegate_to: ca1
+
+- name: Create tempfile for cert
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .cer
+  register: application_cer_tempfile
+
+- name: Create tempfile for application unencrypted private key
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .key
+  register: application_pkey_unenc_tempfile
+  when: create_unencrypted

@@ -1,0 +1,131 @@
+- name: Create certs directory
+  ansible.builtin.file:
+    path: /opt/splunk/etc/auth/certs
+    state: directory
+    owner: splunk
+    group: splunk
+    mode: "0755"
+  become: true
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "{{ root_ca_store }}"
+    mode: "0644"
+  become: true
+  notify: "{{ update_ca_handler }}"
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /opt/splunk/etc/auth/certs/cacert.pem
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Copy splunk certificate
+  ansible.builtin.copy:
+    content: "{{ splunk_cert }}"
+    dest: /opt/splunk/etc/auth/certs/server.cer
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Copy splunk private key
+  ansible.builtin.copy:
+    content: "{{ splunk_cert_key }}"
+    dest: /opt/splunk/etc/auth/certs/server.key
+    mode: "0400"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Copy splunk private key
+  ansible.builtin.copy:
+    content: "{{ splunk_cert_key_unenc }}"
+    dest: /opt/splunk/etc/auth/certs/server_unenc.key
+    mode: "0400"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Check if Root CA bundle exists
+  ansible.builtin.stat:
+    path: /opt/splunk/etc/auth/certs/rootca_bundle.pem
+  register: root_bundle_stat
+  become: true
+
+- name: Ubuntu - Install p11-kit
+  ansible.builtin.apt:
+    name: p11-kit
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Extract a copy of the system CA root certificates
+  ansible.builtin.command: trust extract --format=pem-bundle /opt/splunk/etc/auth/certs/rootca_bundle.pem
+  become: true
+  register: extract_root
+  changed_when: extract_root.rc == 0
+  when:
+    - not root_bundle_stat.stat.exists
+
+- name: Ubuntu - Remove p11-kit
+  ansible.builtin.apt:
+    name: p11-kit
+    state: absent
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Chown Splunk
+  ansible.builtin.file:
+    path: /opt/splunk/etc/auth/certs/rootca_bundle.pem
+    state: file
+    owner: splunk
+    group: splunk
+    mode: "0644"
+  become: true
+
+- name: Slurp sanitized root CA
+  ansible.builtin.slurp:
+    src: /opt/splunk/etc/auth/certs/cacert.pem
+  register: cacert_pem
+  become: true
+
+- name: Slurp server certificate
+  ansible.builtin.slurp:
+    src: /opt/splunk/etc/auth/certs/server.cer
+  register: server_pem
+  become: true
+
+- name: Slurp server key
+  ansible.builtin.slurp:
+    src: /opt/splunk/etc/auth/certs/server.key
+  register: server_key
+  become: true
+
+- name: Slurp server unencrypted key
+  ansible.builtin.slurp:
+    src: /opt/splunk/etc/auth/certs/server_unenc.key
+  register: server_unenc_key
+  become: true
+
+- name: Create formatted certificate for Splunk
+  ansible.builtin.copy:
+    content: "{{ server_pem['content'] | b64decode }}{{ server_key['content'] | b64decode }}{{ cacert_pem['content'] | b64decode }}"
+    dest: /opt/splunk/etc/auth/certs/server.pem
+    mode: "0400"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Create formatted unencrypted certificate for Splunk
+  ansible.builtin.copy:
+    content: "{{ server_pem['content'] | b64decode }}{{ server_unenc_key['content'] | b64decode }}{{ cacert_pem['content'] | b64decode }}"
+    dest: /opt/splunk/etc/auth/certs/server_unenc.pem
+    mode: "0400"
+    owner: splunk
+    group: splunk
+  become: true

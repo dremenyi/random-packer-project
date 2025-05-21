@@ -1,0 +1,13 @@
+- name: Restart NLA
+  ansible.windows.win_service:
+    name: nlasvc
+    state: restarted
+    force_dependent_services: true
+  register: nla_restart
+  until: nla_restart is not failed
+  retries: 3
+  delay: 30
+
+- name: reboot server
+  ansible.windows.win_reboot:
+    reboot_timeout: 600

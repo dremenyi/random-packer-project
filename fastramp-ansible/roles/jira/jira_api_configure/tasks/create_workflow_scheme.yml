@@ -1,0 +1,29 @@
+---
+- name: Create Workflow Scheme
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/workflowscheme"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: POST
+    body_format: json
+    force_basic_auth: true
+    status_code: 201, 400
+    body:
+      name: "{{ item.key }} Workflow Scheme"
+      description: "Workflow scheme for {{ item.key }} Project"
+      defaultWorkflow: jira
+  register: field_requesttype
+  changed_when: field_requesttype.status == 201
+
+# https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/workflowscheme-createScheme
+# 201 = The newly created scheme.
+# 401 = Returned if there is no user or if the user has not entered a websudo session.
+- name: Show field_requesttype success
+  ansible.builtin.debug:
+    var: field_requesttype.json
+  when: field_requesttype.status == 201
+
+- name: Show field_requesttype error
+  ansible.builtin.debug:
+    var: field_requesttype.json.errorMessages
+  when: field_requesttype.status != 201

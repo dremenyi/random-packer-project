@@ -1,0 +1,26 @@
+- name: List Nessus Files
+  ansible.builtin.uri:
+    url: "https://www.tenable.com/downloads/api/v2/pages/nessus"
+    method: GET
+    status_code: 200
+    headers:
+      accept: application/json
+  register: list_nessus_files
+
+- name: Set Nessus Filename
+  ansible.builtin.set_fact:
+    nessus_filename: "{{ list_nessus_files.json.releases.latest | dict2items | to_json | from_json | community.general.json_query(field_query) | select | first | join }}"
+  vars:
+    field_query: "[].value[?contains(file,'{{ nessus_file_contains_string }}')].file"
+
+- name: Set Nessus download url
+  ansible.builtin.set_fact:
+    nessus_download_url: "{{ list_nessus_files.json.releases.latest | dict2items | to_json | from_json | community.general.json_query(field_query) | select | first | join }}"
+  vars:
+    field_query: "[].value[?contains(file,'{{ nessus_file_contains_string }}')].file_url"
+
+- name: Set Nessus SHA256 Hash
+  ansible.builtin.set_fact:
+    nessus_installer_hash: "{{ list_nessus_files.json.releases.latest | dict2items | to_json | from_json | community.general.json_query(field_query) | select | first | join }}"
+  vars:
+    field_query: "[].value[?contains(file,'{{ nessus_file_contains_string }}')].sha256"

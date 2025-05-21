@@ -1,0 +1,39 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    ### Elasticsearch Service Token ###
+    # 200 = Deleted
+    # 404 = Not found (does not exist)
+    - name: Ensure elasticsearch service token does not exist
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_security/service/elastic/kibana/credential/token/{{ inventory_hostname }}"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: DELETE
+        force_basic_auth: true
+        status_code: 200, 404
+      register: delete_kibana_service_token
+      changed_when: delete_kibana_service_token.status == 200
+
+    - name: Create elasticsearch service token for kibana server
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_security/service/elastic/kibana/credential/token/{{ inventory_hostname }}"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: POST
+        force_basic_auth: true
+        status_code: 200
+      register: create_kibana_service_token
+      changed_when: create_kibana_service_token.status == 200
+      no_log: "{{ ansible_no_log }}"
+
+    - name: Create Service Token in AWS SSM Parameter Store
+      community.aws.ssm_parameter:
+        name: "{{ elastic_secrets_path }}{{ inventory_hostname }}_service_token"
+        state: present
+        string_type: "SecureString"
+        value: "{{ create_kibana_service_token.json.token.value }}"
+        region: "{{ aws_region }}"
+        key_id: "{{ ssm_parameter_store_key_id }}"
+        endpoint_url: "{{ ssm_endpoint }}"
+      when: ansible_system_vendor == 'Amazon EC2'

@@ -1,0 +1,7 @@
+---
+root_ca_store: /etc/pki/ca-trust/source/anchors/cacert.pem
+update_ca_handler: rhel update ca trust
+gitlab_repository_installation_script_url: "https://packages.gitlab.com/install/repositories/gitlab/gitlab-fips/script.rpm.sh"
+
+# Non-FIPS = https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh
+# FIPS = https://packages.gitlab.com/install/repositories/gitlab/nightly-fips-builds/script.rpm.sh

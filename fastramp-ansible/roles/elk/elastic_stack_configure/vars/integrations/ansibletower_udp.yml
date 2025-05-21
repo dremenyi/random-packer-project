@@ -1,0 +1,28 @@
+---
+ansibletower_udp_integration:
+  policy_id: "{{ policy_id }}"
+  package:
+    name: udp
+    version: "{{ package_version }}"
+  name: udp-ansibletower
+  description: ''
+  namespace: "{{ item.policy_namespace }}"
+  inputs:
+    udp-udp:
+      enabled: true
+      streams:
+        udp.generic:
+          enabled: true
+          vars:
+            listen_address: 127.0.0.1
+            listen_port: '514'
+            data_stream.dataset: udp.generic
+            max_message_size: 10KiB
+            keep_null: false
+            tags: []
+            syslog: true
+            syslog_options: |
+              field: message
+              #format: auto
+              #timezone: Local
+            custom: ''

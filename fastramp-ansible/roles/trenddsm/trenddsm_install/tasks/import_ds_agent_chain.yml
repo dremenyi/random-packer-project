@@ -1,0 +1,18 @@
+- name: Copy certificate for DS Agent
+  ansible.builtin.copy:
+    content: "{{ dsm_cert }}{{ dsm_cert_key }}{{ rootca_cert }}"
+    dest: /opt/dsm/ds_agent_chain.pem
+    mode: "0400"
+    force: true
+  become: true
+
+- name: Import DS Agent chain
+  ansible.builtin.command: /opt/dsm/dsm_c -action agentHBPublicServerCertificate -set /opt/dsm/ds_agent_chain.pem
+  become: true
+  register: import_ds_agent
+  changed_when: import_ds_agent.stdout_lines | select("match", ".*Successfully set new chain.*")
+  notify: Restart DSM
+
+- name: Debug import_ds_agent
+  ansible.builtin.debug:
+    var: import_ds_agent

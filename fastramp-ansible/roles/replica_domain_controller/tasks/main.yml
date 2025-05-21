@@ -1,0 +1,38 @@
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: NGEN powershell assembly, improves startup time of powershell by 10x
+  ansible.windows.win_powershell:
+    script: |
+      $old_path = $env:path
+      try {
+        $env:path = [Runtime.InteropServices.RuntimeEnvironment]::GetRuntimeDirectory()
+        [AppDomain]::CurrentDomain.GetAssemblies() | % {
+          if (! $_.location) {continue}
+          $Name = Split-Path $_.location -leaf
+          if ($Name.startswith("Microsoft.PowerShell.")) {
+            Write-Progress -Activity "Native Image Installation" -Status "$name"
+            ngen.exe install $_.location | % {"`t$_"}
+          }
+        }
+      } finally {
+        $env:path = $old_path
+      }
+    error_action: stop
+  register: ps_ngen
+
+- name: Install AD
+  ansible.builtin.include_tasks: install_ad.yml
+
+- name: Config AD
+  ansible.builtin.include_tasks: config_ad.yml
+
+- name: Create AWS AD Backup Scheduled task
+  ansible.builtin.include_tasks: aws_ad_backup.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Create App Directory
+  ansible.windows.win_file:
+    path: "{{ app_dir }}"
+    state: directory

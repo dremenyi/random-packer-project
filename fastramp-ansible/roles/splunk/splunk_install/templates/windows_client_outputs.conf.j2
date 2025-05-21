@@ -1,0 +1,17 @@
+[tcpout]
+defaultGroup = idxclusterSSL
+forceTimebasedAutoLB = true
+compressed = false
+
+[tcpout:idxclusterSSL]
+useSSL = true
+sslVersions = tls1.2
+cipherSuite = {{ cipher_suite }}
+ecdhCurves = {{ ecdh_curves }}
+disabled = 0
+server = {{ indexers_string }}
+autoLBFrequency = 35
+useACK = false
+sslRootCAPath = C:\Program Files\SplunkUniversalForwarder\etc\apps\windows_ssl_outputs\certs\cacert.pem
+clientCert = C:\Program Files\SplunkUniversalForwarder\etc\apps\windows_ssl_outputs\certs\splunkclient_unenc.pem
+useClientSSLCompression = false

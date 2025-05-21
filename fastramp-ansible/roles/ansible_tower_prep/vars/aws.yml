@@ -1,0 +1,21 @@
+---
+# Common
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path', endpoint=ssm_endpoint) }}"
+tower_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/tower_secrets_path', endpoint=ssm_endpoint) }}"
+
+# Tower
+svc_ansible_password: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_ansible', endpoint=ssm_endpoint) }}"
+db_password: "{{ lookup('amazon.aws.aws_ssm', tower_secrets_path + 'db_password', endpoint=ssm_endpoint) }}"
+tower_admin: "{{ lookup('amazon.aws.aws_ssm', tower_secrets_path + 'admin', endpoint=ssm_endpoint) }}"
+install_s3_bucket: "{{ lookup('amazon.aws.aws_ssm', tower_secrets_path + 'install_s3_bucket', endpoint=ssm_endpoint) }}"
+install_s3_ansible_file: "{{ lookup('amazon.aws.aws_ssm', tower_secrets_path + 'install_s3_ansible_file', endpoint=ssm_endpoint) }}"
+db_endpoint: "{{ lookup('amazon.aws.aws_ssm', tower_secrets_path + 'db_endpoint', endpoint=ssm_endpoint) }}"
+ansible_installer_hash: "{{ lookup('amazon.aws.aws_ssm', tower_secrets_path + 'ansible_installer_hash', endpoint=ssm_endpoint) }}"
+rootca_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'root_ca_pub.pem', endpoint=ssm_endpoint) }}"
+tower_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'tower_cert', endpoint=ssm_endpoint) }}"
+tower_cert_key: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'tower_cert_key', endpoint=ssm_endpoint) }}"

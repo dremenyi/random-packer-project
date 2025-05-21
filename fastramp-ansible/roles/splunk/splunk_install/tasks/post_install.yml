@@ -1,0 +1,28 @@
+- name: Touch .ui_login file to disable first-time login prompt
+  ansible.builtin.file:
+    dest: /opt/splunk/etc/.ui_login
+    state: touch
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Ensure correct ownership for /opt/splunk/etc
+  ansible.builtin.file:
+    path: /opt/splunk/etc
+    owner: splunk
+    group: splunk
+    recurse: true
+  become: true
+
+- name: Enable Optimistic File Lock (For Molecule)
+  community.general.ini_file:
+    path: /opt/splunk/etc/splunk-launch.conf
+    section: null
+    option: OPTIMISTIC_ABOUT_FILE_LOCKING
+    value: 1
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  when: is_container

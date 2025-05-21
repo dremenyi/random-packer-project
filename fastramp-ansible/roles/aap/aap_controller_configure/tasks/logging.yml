@@ -1,0 +1,90 @@
+- name: Configure ELK Logging
+  awx.awx.settings:
+    settings:
+      LOG_AGGREGATOR_HOST: 127.0.0.1
+      LOG_AGGREGATOR_PORT: 5515
+      LOG_AGGREGATOR_ENABLED: true
+      LOG_AGGREGATOR_PROTOCOL: tcp
+      LOG_AGGREGATOR_TYPE: other
+      LOG_AGGREGATOR_LEVEL: INFO
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true
+  when: deployed_siem == 'elastic'
+
+- name: Splunk Logging
+  when: deployed_siem == 'splunk'
+  block:
+    - name: Get HTTP Inputs
+      ansible.builtin.uri:
+        url: "{{ splunk_api_url }}/services/data/inputs/http?output_mode=json"
+        user: "admin"
+        url_password: "{{ user_password }}"
+        method: GET
+        force_basic_auth: true
+        status_code: 200
+        timeout: 120
+        return_content: true
+      register: get_http_inputs
+      no_log: true
+      changed_when: false
+
+    - name: Create HTTP Token
+      ansible.builtin.uri:
+        url: "{{ splunk_api_url }}/services/data/inputs/http?output_mode=json"
+        user: "admin"
+        url_password: "{{ user_password }}"
+        method: POST
+        force_basic_auth: true
+        status_code: 201
+        timeout: 120
+        return_content: true
+        body_format: form-urlencoded # Splunk does not accept json format
+        body:
+          index: ansible
+          indexes: ansible
+          name: ansible
+          sourcetype: _json
+      register: set_http_inputs
+      no_log: true
+      when: get_http_inputs.json.entry[0].content.token is not defined
+
+    - name: Enable HTTP Token
+      ansible.builtin.uri:
+        url: "{{ splunk_api_url }}/services/data/inputs/http/ansible/enable?output_mode=json"
+        user: "admin"
+        url_password: "{{ user_password }}"
+        method: POST
+        force_basic_auth: true
+        status_code: 200
+        timeout: 120
+      register: enable_http_input
+      no_log: true
+
+    - name: Set Existing token
+      ansible.builtin.set_fact:
+        splunk_token: get_http_inputs.json.entry[0].content.token
+      no_log: true
+      when: get_http_inputs.json.entry[0].content.token is defined
+
+    - name: Set Created token
+      ansible.builtin.set_fact:
+        splunk_token: set_http_inputs.json.entry[0].content.token
+      no_log: true
+      when: get_http_inputs.json.entry[0].content.token is not defined
+
+    - name: Configure Splunk Logging
+      awx.awx.settings:
+        settings:
+          LOG_AGGREGATOR_HOST: "https://splunkhf1.{{ ansible_domain }}:8088/services/collector/event"
+          LOG_AGGREGATOR_ENABLED: true
+          LOG_AGGREGATOR_PASSWORD: "{{ splunk_token }}"
+          LOG_AGGREGATOR_PROTOCOL: https
+          LOG_AGGREGATOR_TYPE: splunk
+          LOG_AGGREGATOR_LEVEL: INFO
+          LOG_AGGREGATOR_VERIFY_CERT: true
+        controller_host: "{{ controller_api_url }}"
+        controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+        validate_certs: true
+      no_log: true
+      register: configure_splunk_logging

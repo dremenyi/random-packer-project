@@ -1,0 +1,21 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Install collection community.docker
+  community.general.ansible_galaxy_install:
+    type: collection
+    name: community.docker
+    dest: /usr/share/ansible/collections
+
+- name: Get ECR password
+  ansible.builtin.command:
+    cmd: "aws ecr get-login-password --region {{ aws_region }}"
+  register: get_ecr_password
+
+- name: Login to Registry
+  ansible.builtin.include_tasks: login_docker.yml
+
+- name: Build EE
+  ansible.builtin.include_tasks: build_ee.yml

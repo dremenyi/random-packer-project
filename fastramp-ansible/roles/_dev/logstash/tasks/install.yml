@@ -1,0 +1,37 @@
+- name: Import Elasticsearch GPG Key
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+  become: true
+
+- name: Add repository
+  ansible.builtin.yum_repository:
+    name: elasticsearch
+    description: Elasticsearch repository for 8.x packages
+    baseurl: https://artifacts.elastic.co/packages/8.x/yum
+    gpgcheck: true
+    enabled: false
+    gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+  become: true
+
+- name: Download logstash
+  ansible.builtin.yum:
+    name: "logstash-{{ elastic_version }}"
+    enablerepo: elasticsearch
+    state: present
+    download_only: true
+    download_dir: /tmp
+  become: true
+
+- name: Install logstash with RPM
+  ansible.builtin.command:
+    cmd: "rpm --install -ivh --nodigest --nofiledigest /tmp/logstash-{{ elastic_version }}-x86_64.rpm"
+  become: true
+  register: install_result
+  changed_when: install_result.rc == 0
+
+- name: Remove logstash installer
+  ansible.builtin.file:
+    path: "/tmp/logstash-{{ elastic_version }}-x86_64.rpm"
+    state: absent
+  become: true

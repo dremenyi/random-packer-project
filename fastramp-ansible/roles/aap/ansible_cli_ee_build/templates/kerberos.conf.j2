@@ -1,0 +1,10 @@
+[libdefaults]
+	rdns = false
+	default_realm = {{ ansible_domain | upper }}
+
+[realms]
+ {{ ansible_domain | upper }} = {
+  kdc = dc1.{{ ansible_domain }}
+  kdc = dc2.{{ ansible_domain }}
+  admin_server = dc1.{{ ansible_domain }}
+ }

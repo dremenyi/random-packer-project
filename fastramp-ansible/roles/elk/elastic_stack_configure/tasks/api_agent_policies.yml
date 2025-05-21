@@ -1,0 +1,26 @@
+# 200 = Successful
+# 409 = Already exists
+- name: Create Agent Policies
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/fleet/agent_policies"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: POST
+    force_basic_auth: true
+    status_code: 200, 409
+    body_format: json
+    headers:
+      kbn-xsrf: true
+    body:
+      name: "{{ item.name }}"
+      namespace: "{{ item.namespace }}"
+      description: "{{ item.description }}"
+      monitoring_enabled:
+        - metrics
+        - logs
+  register: create_agent_policy
+  changed_when: create_agent_policy.status == 200
+
+- name: Debug create_agent_policy
+  ansible.builtin.debug:
+    var: create_agent_policy

@@ -1,0 +1,16 @@
+---
+# Common
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+
+# Install/Configure AD
+first_dc_ip: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'first_dc_ip', endpoint=ssm_endpoint) }}"
+second_dc_ip: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'second_dc_ip', endpoint=ssm_endpoint) }}"
+safe_mode_password: "{{ lookup('amazon.aws.aws_secret', ad_secrets_path + 'SafeMode') }}"
+da_admin1_password: "{{ lookup('amazon.aws.aws_secret', ad_secrets_path + 'da_admin1') }}"
+
+# Backup
+ad_s3_backup_bucket: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'ad_s3_backup_bucket', endpoint=ssm_endpoint) }}"

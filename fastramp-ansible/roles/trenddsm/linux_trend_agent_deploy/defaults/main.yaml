@@ -1,0 +1,5 @@
+manager_url: "https://dsm.{{ ansible_domain }}:4119/"
+# Activation through ALB not supported in FIPS mode
+activation_url: "dsm://dsm1.{{ ansible_domain }}:4120"
+policy_name: Linux Server
+is_packer: false

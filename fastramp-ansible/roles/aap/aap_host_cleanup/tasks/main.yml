@@ -1,0 +1,23 @@
+- name: Remove AAP installer directory
+  ansible.builtin.file:
+    path: /tmp/aapinst
+    state: absent
+  become: true
+  when: inventory_hostname == 'aaphub1'
+
+- name: Disallow linux admins passwordless sudo
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: "^%linuxadmins"
+    line: "%linuxadmins ALL=(ALL) ALL"
+    validate: "/usr/sbin/visudo -cf %s"
+  become: true
+
+- name: Disallow SSH Root Login
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "(?i)^#?PermitRootLogin"
+    line: "PermitRootLogin no"
+  become: true
+  notify: restart sshd

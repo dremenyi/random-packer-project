@@ -1,0 +1,71 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Install Required Packages
+  ansible.builtin.include_tasks: install_packages.yml
+
+- name: Configure LDAP
+  ansible.builtin.include_tasks: configure_ldap.yml
+
+- name: Create temporary aap Install Directory
+  ansible.builtin.file:
+    path: /tmp/aapinst/group_vars
+    state: directory
+    mode: "0755"
+
+- name: Download AAP installer from S3 bucket
+  amazon.aws.s3_object:
+    aws_config:
+      s3:
+        addressing_style: virtual
+    bucket: "{{ install_s3_bucket }}"
+    object: "aap/{{ install_s3_aap_file }}"
+    dest: /tmp/aap-setup-latest.tar.gz
+    mode: get
+    overwrite: never # "different" uses MD5 which is disabled in FIPS mode
+    region: "{{ aws_region }}"
+    endpoint_url: "https://s3-fips.{{ aws_region }}.amazonaws.com"
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Check AAP installer file hash
+  ansible.builtin.stat:
+    path: /tmp/aap-setup-latest.tar.gz
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: aap_downloaded_installer_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - aap_downloaded_installer_file.stat.checksum == aap_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ aap_downloaded_installer_file.stat.checksum }}, the expected hash is {{ aap_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Unarchive Ansible aap installer
+  ansible.builtin.unarchive:
+    src: /tmp/aap-setup-latest.tar.gz
+    dest: /tmp/aapinst
+    remote_src: true
+    extra_opts: [--strip-components=1]
+    creates: /tmp/aapinst/setup.sh
+
+- name: Copy Misc Files
+  ansible.builtin.include_tasks: copy_files.yml
+
+- name: Encrypt group_vars/all
+  ansible.builtin.command: ansible-vault encrypt /tmp/aapinst/group_vars/all --vault-password-file=/tmp/aapinst/ansible-vault.pass
+  register: ansible_vault_command
+  changed_when: ansible_vault_command.rc == 0
+
+- name: Create CNAME record for ALB
+  community.windows.win_dns_record:
+    name: "aapcontroller"
+    type: "CNAME"
+    value: "{{ alb_hostname }}"
+    zone: "{{ ansible_domain }}"
+  delegate_to: dc1
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['ansible1']['svc_ansible_da_password'] }}"

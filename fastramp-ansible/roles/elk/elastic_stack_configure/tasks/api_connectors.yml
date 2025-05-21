@@ -1,0 +1,23 @@
+- name: Include vars file
+  ansible.builtin.include_vars: "connectors/{{ item.name }}.yml"
+
+- name: Create Connector
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/actions/connector"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: POST
+    force_basic_auth: true
+    status_code: 200, 204
+    headers:
+      kbn-xsrf: true
+    body_format: json
+    body: "{{ lookup('ansible.builtin.vars', item.name + '_connector') }}"
+    timeout: 120
+  register: add_connector
+  changed_when: add_connector.status == 204
+  no_log: true
+
+- name: Debug add_connector
+  ansible.builtin.debug:
+    var: add_connector

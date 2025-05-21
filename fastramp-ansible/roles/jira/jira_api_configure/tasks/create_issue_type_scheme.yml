@@ -1,0 +1,138 @@
+---
+# Look for existing issue types
+- name: Issue Type Search
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/issuetype"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: true
+    status_code: 200
+  register: issuetypes
+
+- name: Initialize array
+  ansible.builtin.set_fact:
+    search_issuetype: []
+
+- name: Run query and append to array
+  ansible.builtin.set_fact:
+    search_issuetype: "{{ search_issuetype + (issuetypes | to_json | from_json | community.general.json_query(field_query)) }}"
+  vars:
+    field_query: "json[?name=='{{ issuetype_item }}'].id"
+  loop: "{{ item.value.issue_types }}"
+  loop_control:
+    loop_var: issuetype_item
+
+- name: Debug search_issuetype
+  ansible.builtin.debug:
+    var: search_issuetype
+
+# Look for existing issue type scheme
+- name: Issue Type Scheme Search
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/issuetypescheme"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: true
+    status_code: 200
+  register: issuetypeschemes
+
+- name: Debug issuetypeschemes
+  ansible.builtin.debug:
+    var: issuetypeschemes
+
+- name: Check for existing Issue Type Scheme
+  ansible.builtin.set_fact:
+    search_issuetypescheme: "{{ issuetypeschemes | to_json | from_json | community.general.json_query(field_query) }}"
+  vars:
+    field_query: "json[?name=='{{ item.key }} Issue Type Scheme'].id"
+
+- name: Debug search_issuetypescheme
+  ansible.builtin.debug:
+    var: search_issuetypescheme
+
+- name: Create Issue Type Scheme BLOCK
+  when: search_issuetypescheme | length == 0
+  block:
+    - name: Create Issue Type Scheme
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/issuetypescheme"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: POST
+        body_format: json
+        force_basic_auth: true
+        status_code: 200, 400
+        body:
+          name: "{{ item.key }} Issue Type Scheme"
+          description: "{{ item.key }} issue type scheme"
+          issueTypeIds: "[{{ search_issuetype | join(',') }}]"
+      register: create_issuetypescheme
+      changed_when: create_issuetypescheme.status == 200
+
+    # https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/issuetypescheme-createIssueTypeScheme
+    # 200 = Returned if the issue type scheme was successfully created.
+    # 400 = Returned if the request is invalid. This happens when the name or associated issue types are invalid.
+    # It also occurs when the default issue type isn't found in the collection of associated issue types.
+    # 401 = Returned if the calling user is not authenticated.
+    # 403 = Returned if the calling user does not have permission to administer Jira.
+    - name: Show create_issuetypescheme success
+      ansible.builtin.debug:
+        var: create_issuetypescheme.json
+      when: create_issuetypescheme.status == 200
+
+    - name: Show issuetypescheme error
+      ansible.builtin.debug:
+        var: create_issuetypescheme.json.errorMessages
+      when: create_issuetypescheme.status != 200
+# End Create Issue Type Scheme BLOCK
+
+- name: Get create_project.json.id
+  ansible.builtin.set_fact:
+    project_id: "{{ create_project.json.id }}"
+  when: create_project.json.id is defined
+
+- name: Get get_project.json.id
+  ansible.builtin.set_fact:
+    project_id: "{{ get_project.json.id }}"
+  when: get_project.json.id is defined
+
+- name: Associate Issue Type Scheme with Project BLOCK
+  when: create_issuetypescheme.json.id is defined
+  block:
+    - name: Associate Issue Type Scheme with Project
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/issuetypescheme/{{ create_issuetypescheme.json.id }}/associations"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: PUT
+        body_format: json
+        force_basic_auth: true
+        status_code: 200, 201, 400
+        body:
+          idsOrKeys: ["{{ item.key }}"]
+      register: issuetypescheme_associate
+
+    # https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/issuetypescheme-setProjectAssociationsForScheme
+    # 200 = Returned if the associations were successfully updated
+    # 201 = Undocumented success code.
+    # 400 = Returned if the request is invalid. This occurs when the supplied project ids/keys are invalid.
+    # It also happens if performing the association would require an issue type migration for any of the newly associated projects.
+    # 401 = Returned if the calling user is not authenticated.
+    # 403 = Returned if the calling user does not have permission to administer Jira.
+    # 404 = Returned if the issue type scheme to update does not exist.
+    - name: Show issuetypescheme_associate success
+      ansible.builtin.debug:
+        var: issuetypescheme_associate
+      when: issuetypescheme_associate.status == 200 or issuetypescheme_associate.status == 201
+
+    - name: Show issuetypescheme_associate error
+      ansible.builtin.debug:
+        var: issuetypescheme_associate.json.errorMessages
+      when:
+        - issuetypescheme_associate.status != 200
+        - issuetypescheme_associate.status != 201
+# End Associate Change / Access Issue Type Scheme with Project BLOCK

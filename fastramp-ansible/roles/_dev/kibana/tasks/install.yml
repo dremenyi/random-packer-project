@@ -1,0 +1,22 @@
+- name: Import Elasticsearch GPG Key
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+  become: true
+
+- name: Add repository
+  ansible.builtin.yum_repository:
+    name: elasticsearch
+    description: Elasticsearch repository for 8.x packages
+    baseurl: https://artifacts.elastic.co/packages/8.x/yum
+    gpgcheck: true
+    enabled: false
+    gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+  become: true
+
+- name: Install kibana
+  ansible.builtin.yum:
+    name: "kibana-{{ elastic_version }}"
+    enablerepo: elasticsearch
+    state: present
+  become: true

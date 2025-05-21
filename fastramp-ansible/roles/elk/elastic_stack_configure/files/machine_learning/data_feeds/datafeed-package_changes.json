@@ -1,0 +1,38 @@
+{
+    "datafeed_id" : "datafeed-package_changes",
+    "job_id" : "package_changes",
+    "query_delay" : "86469ms",
+    "indices" : [
+      "auditbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "must" : [
+          {
+            "match_all" : { }
+          }
+        ],
+        "filter" : [
+          {
+            "exists" : {
+              "field" : "system.audit.package.installtime"
+            }
+          }
+        ],
+        "must_not" : [
+          {
+            "match_phrase" : {
+              "event.action" : "existing_package"
+            }
+          }
+        ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

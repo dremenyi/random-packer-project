@@ -1,0 +1,101 @@
+# Note: While this is installed in the virtual environment, cryptographic operations tend to need root
+# so I'm using become to install this and make it available for root
+- name: Ensure pyopenssl is present
+  ansible.builtin.pip:
+    name: pyopenssl
+    executable: /usr/local/bin/pip3.9
+    umask: '0022'
+  when: ansible_facts['distribution'] == 'Amazon'
+  become: true
+
+- name: Backup Config files
+  ansible.builtin.copy:
+    src: "{{ item.path }}{{ item.src }}"
+    dest: "{{ item.path }}{{ item.dest }}"
+    mode: '0644'
+    remote_src: true
+  become: true
+  loop:
+    - { path: /opt/atlassian/jira/conf/, src: server.xml, dest: server.xml.bak }
+    - { path: /opt/atlassian/jira/conf/, src: web.xml, dest: web.xml.bak }
+
+- name: Create tempfile for PKCS
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .p12
+  register: jira_p12_tempfile
+  notify: Remove Jira p12 Tempfile
+
+- name: Generate PKCS#12 file
+  community.crypto.openssl_pkcs12:
+    action: export
+    path: "{{ jira_p12_tempfile.path }}"
+    friendly_name: jira
+    privatekey_path: /tmp/jira_cert_key.pem
+    certificate_path: /tmp/jira_cert.pem
+    passphrase: changeit
+    force: true
+    state: present
+    mode: '0400'
+  become: true
+
+- name: Ensure tmp JKS does not exist
+  ansible.builtin.file:
+    path: /tmp/jira.jks
+    state: absent
+  become: true
+
+- name: Generate JKS
+  ansible.builtin.command: >
+    /opt/atlassian/jira/jre/bin/keytool -importkeystore -destkeystore /tmp/jira.jks -srckeystore {{ jira_p12_tempfile.path }}
+     -srcstoretype pkcs12 -alias jira -srcstorepass changeit -deststorepass changeit
+  become: true
+  register: generate_jks
+  changed_when: generate_jks.stderr_lines | select("match", ".*Importing keystore.*")  # Appears to normally output to stderr
+
+- name: Add RootCA to JKS
+  ansible.builtin.command: >
+    /opt/atlassian/jira/jre/bin/keytool -import -alias rootCA -keystore /tmp/jira.jks -file {{ root_ca_store }}
+     -srcstorepass changeit -deststorepass changeit -noprompt
+  become: true
+  register: add_rootca_jks
+  changed_when: add_rootca_jks.stderr_lines | select("match", ".*Certificate was added to keystore.*")
+
+- name: Copy JKS to Jira directory
+  ansible.builtin.copy:
+    src: /tmp/jira.jks
+    dest: /opt/atlassian/jira/jira.jks
+    mode: '0644'
+    owner: jira
+    group: jira
+    force: true
+    remote_src: true
+  become: true
+
+- name: Import RootCA to Jira keystore
+  ansible.builtin.command: >
+    /opt/atlassian/jira/jre/bin/keytool -import -alias rootCA -keystore /opt/atlassian/jira/jre/lib/security/cacerts
+     -file {{ root_ca_store }} -srcstorepass changeit -deststorepass changeit -noprompt
+  become: true
+  register: import_rootca_jira
+  changed_when: import_rootca_jira.stderr_lines | select("match", ".*Certificate was added to keystore.*")
+
+- name: Copy server.xml from template
+  ansible.builtin.template:
+    src: server.xml.j2
+    dest: /opt/atlassian/jira/conf/server.xml
+    mode: '0644'
+    owner: jira
+    group: jira
+    force: true
+  become: true
+
+- name: Copy web.xml from template
+  ansible.builtin.template:
+    src: web.xml.j2
+    dest: /opt/atlassian/jira/conf/web.xml
+    mode: '0644'
+    owner: jira
+    group: jira
+    force: true
+  become: true

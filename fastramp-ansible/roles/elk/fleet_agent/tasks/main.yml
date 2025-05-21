@@ -1,0 +1,29 @@
+---
+
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install Elastic Agent
+  ansible.builtin.include_tasks: install.yml
+  when: '"elastic-agent.service" not in ansible_facts.services'
+
+- name: Refresh service facts
+  ansible.builtin.service_facts:
+
+- name: Set default elastic_cert_path for elasticsearch hosts
+  ansible.builtin.set_fact:
+    elastic_cert_path: /etc/elasticsearch/certs
+  when: "'data' in group_names"
+
+- name: Set default elastic_cert_path for kibana hosts
+  ansible.builtin.set_fact:
+    elastic_cert_path: /etc/kibana/certs
+  when: "'kibanaserver' in group_names"
+
+- name: Configure Fleet
+  ansible.builtin.include_tasks: configure_fleet.yml
+  when: ansible_facts.services['elastic-agent.service']['state'] != 'running'

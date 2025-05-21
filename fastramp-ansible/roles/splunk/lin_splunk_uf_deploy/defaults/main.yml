@@ -1,0 +1,14 @@
+---
+# https://www.splunk.com/en_us/download/universal-forwarder.html
+# Append ".sha512" to the full download url to get the hash.
+splunk_package_version: 9.1.1
+build_id: 64e843ea36b1
+
+splunk_uri_ds: "https://splunkds1.{{ ansible_domain }}:8089"
+
+cipher_suite: ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+ecdh_curves: prime256v1, secp384r1, secp521r1
+
+is_packer: false
+
+splunk_user: splunkfwd

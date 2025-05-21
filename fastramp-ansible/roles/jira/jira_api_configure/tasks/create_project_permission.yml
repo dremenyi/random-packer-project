@@ -1,0 +1,67 @@
+---
+- name: Get Role IDs
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/project/{{ item.key }}/role"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: true
+    status_code: 200
+  register: project_roles
+
+- name: show project roles
+  ansible.builtin.debug:
+    msg: "{{ project_roles['json']['Service Desk Team'].split('/') | last }}"
+
+- name: Add JiraAdmins to the Project Administrators
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/project/{{ item.key }}/role/{{ project_roles.json.Administrators.split('/') | last }}"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: POST
+    body_format: json
+    force_basic_auth: true
+    status_code: 200, 404
+    body:
+      group: [JiraAdmins]
+  register: project_admins
+  changed_when: project_admins.status == 200
+
+- name: Show project_admins success
+  ansible.builtin.debug:
+    var: project_admins.json
+  when: project_admins.status == 200
+
+- name: Show project_admins error
+  ansible.builtin.debug:
+    var: project_admins.json.errorMessages
+  when: project_admins.status != 200
+
+- name: Add JiraUsers to the Project Service Desk Team
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/project/{{ item.key }}/role/{{ project_roles['json']['Service Desk Team'].split('/') | last }}"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: POST
+    body_format: json
+    force_basic_auth: true
+    status_code: 200, 404
+    body:
+      group: [JiraUsers]
+  register: project_users
+  changed_when: project_users.status == 200
+
+# https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/project/{projectIdOrKey}/role-addActorUsers
+# 200 = Returns the role name, description, and project actors (users and groups) for the requested role. The project must exist and the user must have permission to view it.
+# 404 = Returned if the actor could not be added to the project role
+# 410 = Returned if none of the specified groups and users exist.
+- name: Show project_users success
+  ansible.builtin.debug:
+    var: project_users.json
+  when: project_users.status == 200
+
+- name: Show project_users error
+  ansible.builtin.debug:
+    var: project_users.json.errorMessages
+  when: project_users.status != 200

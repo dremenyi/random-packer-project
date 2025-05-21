@@ -1,0 +1,112 @@
+# Note: Nuget and PowerShellGet must be updated to meet minimums needed by win_psmodule
+# https://docs.ansible.com/ansible/latest/collections/community/windows/win_psmodule_module.html#notes
+- name: Ensure the required NuGet package provider version is updated
+  ansible.windows.win_powershell:
+    script: |
+      try
+      {
+        $version = Get-PackageProvider -Name Nuget | Select-Object -ExpandProperty Version
+        if( $version -lt 2.8.5.201 ){
+          Find-PackageProvider -Name Nuget -ForceBootstrap -IncludeDependencies -Force
+          $Ansible.Changed = $true
+        }
+        else{
+          $Ansible.Changed = $false
+        }
+      }
+      catch
+      {
+        Find-PackageProvider -Name Nuget -ForceBootstrap -IncludeDependencies -Force
+        $Ansible.Changed = $true
+      }
+    error_action: stop
+  register: install_nuget
+
+# Note: The Get-InstalledModule cmdlet returns a generic error, so a specific type of error cannot be caught.
+# I'm using a generic try/catch statement to handle the expected generic error (module 'PowerShellGet' does not exist)
+- name: Ensure the required PowerShellGet package provider version is present
+  ansible.windows.win_powershell:
+    script: |
+      try
+      {
+        $version = Get-InstalledModule -Name PowerShellGet | Select-Object -ExpandProperty Version
+        if( $version -lt 1.6.0 ){
+        Install-Module -Name PowerShellGet -AllowClobber -Force -Verbose
+        $Ansible.Changed = $true
+        }
+        else{
+          $Ansible.Changed = $false
+        }
+      }
+      catch
+      {
+        Write-Verbose "PowerShellGet not installed"
+        Install-Module -Name PowerShellGet -AllowClobber -Force -Verbose
+        $Ansible.Changed = $true
+      }
+    error_action: stop
+  register: install_powershellget
+
+- name: Install PSModules
+  community.windows.win_psmodule:
+    name: "{{ item }}"
+    state: present
+    accept_license: true
+  loop:
+    - PSDesiredStateConfiguration
+    - ActiveDirectoryCSDsc
+    - ADCSTemplate
+
+- name: Install AD CS Feature
+  ansible.windows.win_feature:
+    name:
+      - ADCS-Cert-Authority
+      - ADCS-Web-Enrollment
+      - RSAT-AD-Powershell
+    state: present
+    include_sub_features: true
+    include_management_tools: true
+  register: win_feature
+
+- name: Reboot if needed
+  ansible.windows.win_reboot:
+  when: win_feature.reboot_required
+
+# Note: This DSC module does not have great error-handling.  If on the first run it doesn't install the CA like you expect it to, try run the Ansible playbook
+# with verbose flags (-vvv) and double-check what Ansible reports the parameters as.  I mistyped a variable name so that dom_disname was 'undefined'
+# and instead of throwing any errors it simply said the CA was already installed and nothing needed to be changed
+- name: Configure CA as Enterprise Root CA
+  ansible.windows.win_dsc:
+    resource_name: ADCSCertificationAuthority
+    Ensure: Present
+    IsSingleInstance: "Yes"
+    CAType: EnterpriseRootCA
+    CACommonName: "{{ ca_common_name }}"
+    CADistinguishedNameSuffix: "{{ dom_disname }}"
+    OverwriteExistingCAinDS: true
+    OverwriteExistingKey: true
+    HashAlgorithmName: SHA256
+    KeyLength: 4096
+    CryptoProviderName: "RSA#Microsoft Software Key Storage Provider"
+    Credential_username: "svc_ansible_da@{{ ansible_domain }}"
+    Credential_password: "{{ svc_ansible_da_password }}"
+    ValidityPeriod: Years
+    ValidityPeriodUnits: 5
+  register: ent_ca
+  notify:
+    - Restart CertSvc
+
+- name: Configure ADCS Web Enrollment
+  ansible.windows.win_dsc:
+    resource_name: ADCSWebEnrollment
+    Ensure: Present
+    IsSingleInstance: "Yes"
+    Credential_username: "svc_ansible_da@{{ ansible_domain }}"
+    Credential_password: "{{ svc_ansible_da_password }}"
+
+- name: Flush handlers if CertSvc needs to be restarted
+  ansible.builtin.meta: flush_handlers
+
+- name: Reboot
+  ansible.windows.win_reboot:
+  when: ent_ca.reboot_required

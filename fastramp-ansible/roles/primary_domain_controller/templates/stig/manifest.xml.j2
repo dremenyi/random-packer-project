@@ -1,0 +1,79 @@
+<Backups xmlns="http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+    xmlns:mfst="http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest" mfst:version="1.0">
+    <BackupInst>
+        <GPOGuid><![CDATA[{{ server_xml.results[0].matches[0].values() | first }}]]></GPOGuid>
+        <GPODomain><![CDATA[{{ server_xml.results[1].matches[0].values() | first }}]]></GPODomain>
+        <GPODomainGuid><![CDATA[{{ server_xml.results[2].matches[0].values() | first }}]]></GPODomainGuid>
+        <GPODomainController><![CDATA[{{ server_xml.results[3].matches[0].values() | first }}]]></GPODomainController>
+        <BackupTime><![CDATA[{{ server_xml.results[4].matches[0].values() | first }}]]></BackupTime>
+        <ID><![CDATA[{{ server_xml.results[5].matches[0].values() | first }}]]></ID>
+        <Comment><![CDATA[{{ server_xml.results[6].matches[0].values() | first }}]]></Comment>
+        <GPODisplayName><![CDATA[{{ server_xml.results[7].matches[0].values() | first }}]]></GPODisplayName>
+    </BackupInst>
+    <BackupInst>
+        <GPOGuid><![CDATA[{{ user_xml.results[0].matches[0].values() | first }}]]></GPOGuid>
+        <GPODomain><![CDATA[{{ user_xml.results[1].matches[0].values() | first }}]]></GPODomain>
+        <GPODomainGuid><![CDATA[{{ user_xml.results[2].matches[0].values() | first }}]]></GPODomainGuid>
+        <GPODomainController><![CDATA[{{ user_xml.results[3].matches[0].values() | first }}]]></GPODomainController>
+        <BackupTime><![CDATA[{{ user_xml.results[4].matches[0].values() | first }}]]></BackupTime>
+        <ID><![CDATA[{{ user_xml.results[5].matches[0].values() | first }}]]></ID>
+        <Comment><![CDATA[{{ user_xml.results[6].matches[0].values() | first }}]]></Comment>
+        <GPODisplayName><![CDATA[{{ user_xml.results[7].matches[0].values() | first }}]]></GPODisplayName>
+    </BackupInst>
+    <BackupInst>
+        <GPOGuid><![CDATA[{{ dc_xml.results[0].matches[0].values() | first }}]]></GPOGuid>
+        <GPODomain><![CDATA[{{ dc_xml.results[1].matches[0].values() | first }}]]></GPODomain>
+        <GPODomainGuid><![CDATA[{{ dc_xml.results[2].matches[0].values() | first }}]]></GPODomainGuid>
+        <GPODomainController><![CDATA[{{ dc_xml.results[3].matches[0].values() | first }}]]></GPODomainController>
+        <BackupTime><![CDATA[{{ dc_xml.results[4].matches[0].values() | first }}]]></BackupTime>
+        <ID><![CDATA[{{ dc_xml.results[5].matches[0].values() | first }}]]></ID>
+        <Comment><![CDATA[{{ dc_xml.results[6].matches[0].values() | first }}]]></Comment>
+        <GPODisplayName><![CDATA[{{ dc_xml.results[7].matches[0].values() | first }}]]></GPODisplayName>
+    </BackupInst>
+    {% if install_authlite | bool %}
+    <BackupInst>
+        <GPOGuid><![CDATA[{{ authlite_dc_xml.results[0].matches[0].values() | first }}]]></GPOGuid>
+        <GPODomain><![CDATA[{{ authlite_dc_xml.results[1].matches[0].values() | first }}]]></GPODomain>
+        <GPODomainGuid><![CDATA[{{ authlite_dc_xml.results[2].matches[0].values() | first }}]]></GPODomainGuid>
+        <GPODomainController><![CDATA[{{ authlite_dc_xml.results[3].matches[0].values() | first }}]]></GPODomainController>
+        <BackupTime><![CDATA[{{ authlite_dc_xml.results[4].matches[0].values() | first }}]]></BackupTime>
+        <ID><![CDATA[{{ authlite_dc_xml.results[5].matches[0].values() | first }}]]></ID>
+        <Comment><![CDATA[{{ authlite_dc_xml.results[6].matches[0].values() | first }}]]></Comment>
+        <GPODisplayName><![CDATA[{{ authlite_dc_xml.results[7].matches[0].values() | first }}]]></GPODisplayName>
+    </BackupInst>
+    <BackupInst>
+        <GPOGuid><![CDATA[{{ authlite_computer_xml.results[0].matches[0].values() | first }}]]></GPOGuid>
+        <GPODomain><![CDATA[{{ authlite_computer_xml.results[1].matches[0].values() | first }}]]></GPODomain>
+        <GPODomainGuid><![CDATA[{{ authlite_computer_xml.results[2].matches[0].values() | first }}]]></GPODomainGuid>
+        <GPODomainController><![CDATA[{{ authlite_computer_xml.results[3].matches[0].values() | first }}]]></GPODomainController>
+        <BackupTime><![CDATA[{{ authlite_computer_xml.results[4].matches[0].values() | first }}]]></BackupTime>
+        <ID><![CDATA[{{ authlite_computer_xml.results[5].matches[0].values() | first }}]]></ID>
+        <Comment><![CDATA[{{ authlite_computer_xml.results[6].matches[0].values() | first }}]]></Comment>
+        <GPODisplayName><![CDATA[{{ authlite_computer_xml.results[7].matches[0].values() | first }}]]></GPODisplayName>
+    </BackupInst>
+    {% endif %}
+    {% for base in base_gpo_xml_list %}
+    <BackupInst>
+        <GPOGuid><![CDATA[{{ base.GPOGuid }}]]></GPOGuid>
+        <GPODomain><![CDATA[{{ base.GPODomain }}]]></GPODomain>
+        <GPODomainGuid><![CDATA[{{ base.GPODomainGuid }}]]></GPODomainGuid>
+        <GPODomainController><![CDATA[{{ base.GPODomainController }}]]></GPODomainController>
+        <BackupTime><![CDATA[{{ base.BackupTime }}]]></BackupTime>
+        <ID><![CDATA[{{ base.ID }}]]></ID>
+        <Comment><![CDATA[{{ base.Comment }}]]></Comment>
+        <GPODisplayName><![CDATA[{{ base.GPODisplayName }}]]></GPODisplayName>
+    </BackupInst>
+    {% endfor %}
+    {% for override in override_gpo_xml_list %}
+    <BackupInst>
+        <GPOGuid><![CDATA[{{ override.GPOGuid }}]]></GPOGuid>
+        <GPODomain><![CDATA[{{ override.GPODomain }}]]></GPODomain>
+        <GPODomainGuid><![CDATA[{{ override.GPODomainGuid }}]]></GPODomainGuid>
+        <GPODomainController><![CDATA[{{ override.GPODomainController }}]]></GPODomainController>
+        <BackupTime><![CDATA[{{ override.BackupTime }}]]></BackupTime>
+        <ID><![CDATA[{{ override.ID }}]]></ID>
+        <Comment><![CDATA[{{ override.Comment }}]]></Comment>
+        <GPODisplayName><![CDATA[{{ override.GPODisplayName }}]]></GPODisplayName>
+    </BackupInst>
+    {% endfor %}
+</Backups>

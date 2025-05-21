@@ -1,0 +1,40 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set domain from Packer SSM
+  ansible.builtin.set_fact:
+    ansible_domain: "{{ lookup('amazon.aws.aws_ssm', '/production/packer/domain_name', region=aws_region, endpoint=ssm_endpoint) }}"
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+    - ansible_domain is not defined or ansible_domain == ''
+
+- name: Debug ansible_domain
+  ansible.builtin.debug:
+    var: ansible_domain
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Trend Agent Deployment
+  ansible.builtin.include_tasks: install.yml
+  when: '"ds_agent.service" not in ansible_facts.services'
+
+- name: Start trend agent service if not running
+  ansible.builtin.service:
+    name: ds_agent
+    state: started
+    enabled: true
+  when: not is_packer # Skip agent activation for a Packer build, activate instead in User Data to avoid duplication

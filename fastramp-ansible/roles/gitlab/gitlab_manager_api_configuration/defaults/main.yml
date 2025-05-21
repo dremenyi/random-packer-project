@@ -1,0 +1,12 @@
+gitlab_api_url: "https://gitlab1.{{ ansible_domain }}/"
+
+projects:
+  ansible:
+    repo_name: fastramp-ansible
+    repo_id: "{{ github_ansible_repo_id }}"
+  packer:
+    repo_name: fastramp-packer
+    repo_id: "{{ github_packer_repo_id }}"
+  terraform:
+    repo_name: fastramp
+    repo_id: "{{ github_terraform_repo_id }}"

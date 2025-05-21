@@ -1,0 +1,8 @@
+- name: Create AAP organization
+  awx.awx.organization:
+    name: "{{ aap_org_name }}"
+    description: "Production Organization"
+    state: present
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true

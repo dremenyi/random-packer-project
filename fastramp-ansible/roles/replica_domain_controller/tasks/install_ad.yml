@@ -1,0 +1,31 @@
+# Note: Domain Services is added by the win_domain module
+- name: Install Windows Features
+  ansible.windows.win_feature:
+    name:
+      - RSAT-ADDS
+      - RSAT-AD-Powershell
+      - Windows-Server-Backup
+    state: present
+    include_sub_features: true
+    include_management_tools: true
+
+- name: Ensure a server is a domain controller
+  microsoft.ad.domain_controller:
+    dns_domain_name: "{{ ansible_domain }}"
+    domain_admin_user: "da_admin1@{{ ansible_domain }}"
+    domain_admin_password: "{{ da_admin1_password }}"
+    safe_mode_password: "{{ safe_mode_password }}"
+    state: domain_controller
+    install_dns: true
+    reboot: false
+  register: ad
+  retries: 3
+  until: ad is not failed
+
+- name: Reboot server
+  ansible.windows.win_reboot:
+    msg: "Installing AD. Rebooting..."
+    pre_reboot_delay: 15
+    reboot_timeout: 600
+    post_reboot_delay: 60
+  when: ad.reboot_required

@@ -1,0 +1,9 @@
+- name: win reboot server
+  ansible.windows.win_reboot:
+    reboot_timeout: 600
+
+- name: lin restart sssd
+  ansible.builtin.service:
+    name: sssd
+    state: restarted
+  become: true

@@ -1,0 +1,23 @@
+- name: Set Policy ID
+  ansible.builtin.set_fact:
+    policy_id: "{{ get_agent_policies.json | community.general.json_query( field_query ) | first }}"
+  vars:
+    field_query: "items[?namespace=='{{ item.namespace }}'].id"
+
+- name: Set Enrollment Token
+  ansible.builtin.set_fact:
+    enrollment_token: "{{ enrollment_tokens.json | community.general.json_query( field_query ) | first }}"
+  vars:
+    field_query: "items[?policy_id=='{{ policy_id }}'].api_key"
+  no_log: true
+
+- name: Create Agent Token in AWS SSM Parameter Store
+  community.aws.ssm_parameter:
+    name: "{{ elastic_secrets_path }}elastic_{{ item.namespace }}_agent_token"
+    state: present
+    string_type: "SecureString"
+    value: "{{ enrollment_token }}"
+    region: "{{ aws_region }}"
+    key_id: "{{ ssm_parameter_store_key_id }}"
+    endpoint_url: "{{ ssm_endpoint }}"
+  when: ansible_system_vendor == 'Amazon EC2'

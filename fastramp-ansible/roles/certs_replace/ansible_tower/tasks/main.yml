@@ -1,0 +1,12 @@
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Copy TLS Certs
+  ansible.builtin.include_tasks: copy_tls_certs.yml
+
+- name: Restart Nginx
+  ansible.builtin.service:
+    name: nginx.service
+    state: restarted
+  become: true

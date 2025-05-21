@@ -1,0 +1,60 @@
+- name: Set TLS
+  ansible.windows.win_powershell:
+    script: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    error_action: stop
+
+- name: Download Trend Agent Installer
+  ansible.windows.win_get_url:
+    url: "{{ download_url }}"
+    dest: 'C:\Windows\Temp\agent.msi'
+    force: true
+  register: download_trend_agent
+  delay: 60
+  retries: 2
+  until: download_trend_agent is not failed # Noticed intermittent download failures, adding retry as workaround
+
+- name: Validate Trend Agent signature
+  ansible.windows.win_powershell:
+    script: |
+      if ( (Get-AuthenticodeSignature "C:\Windows\Temp\agent.msi").Status -ne "Valid" ) {
+        echo "The digital signature of Deep Security Agent is invalid."
+        exit 1
+      }
+    error_action: stop
+
+- name: Create ds_agent.ini file
+  ansible.windows.win_file:
+    path: C:\Windows\ds_agent.ini
+    state: touch
+
+- name: Write FIPS configuration
+  community.windows.win_lineinfile:
+    path: C:\Windows\ds_agent.ini
+    line: "FIPSMode=1"
+    regexp: "FIPSMode="
+
+- name: Run Trend DSM Agent Installer
+  ansible.windows.win_package:
+    path: 'C:\Windows\Temp\agent.msi'
+    state: present
+    arguments: '/qn ADDLOCAL=ALL /l*v C:\Windows\Temp\dsa_install.log'
+
+- name: Cleanup Trend DSM Agent Installer
+  ansible.windows.win_file:
+    path: C:\Windows\Temp\agent.msi
+    state: absent
+
+# Comment out DS Agent cert, not working
+# - name: Copy DS Agent Public certificate to temp
+#  ansible.windows.win_copy:
+#    content: "{{ rootca_cert }}"
+#    dest: 'C:\ProgramData\Trend Micro\Deep Security Agent\dsa_core\ds_agent_dsm_public_ca.crt'
+#    force: true
+
+- name: Activate Trend Agent
+  ansible.windows.win_powershell:
+    script: |
+      & $env:ProgramFiles"\Trend Micro\Deep Security Agent\dsa_control.cmd" -r
+      & $env:ProgramFiles"\Trend Micro\Deep Security Agent\dsa_control.cmd" -a {{ activation_url }} "policy:{{ policy_name }}"
+    error_action: stop

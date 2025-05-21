@@ -1,0 +1,23 @@
+---
+# Common
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path') }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path') }}"
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+secrets_endpoint: "{{ 'https://secretsmanager-fips.' + aws_region + '.amazonaws.com' }}"
+
+# Install and Configure Enterprise CA
+ca_common_name: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'ca_common_name', endpoint=ssm_endpoint) }}"
+dom_disname: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'dom_disname', endpoint=ssm_endpoint) }}"
+default_admin_password: "{{ lookup('amazon.aws.aws_secret', ad_secrets_path + default_domain_admin) }}"
+svc_ansible_da_password: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_ansible_da', endpoint=ssm_endpoint) }}"
+
+# Configure Certificate Templates
+netbios: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'netbios', endpoint=ssm_endpoint) }}"
+
+# Store Root CA
+ssm_parameter_store_key_id: "{{ lookup('amazon.aws.aws_ssm', '/production/ssm_parameter_store_key_id', endpoint=ssm_endpoint) }}"
+
+benchmark: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'benchmark', endpoint=ssm_endpoint) }}"

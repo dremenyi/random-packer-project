@@ -1,0 +1,21 @@
+- name: RHEL - Install yum-utils
+  ansible.builtin.package:
+    name: yum-utils
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: RHEL - Add Hashicorp Repository
+  ansible.builtin.command:
+    cmd: yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+    creates: /etc/yum.repos.d/hashicorp.repo
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Install Packer and Terraform
+  ansible.builtin.package:
+    name:
+      - terraform
+      - packer
+    state: present
+  become: true

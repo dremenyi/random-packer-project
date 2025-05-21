@@ -1,0 +1,7 @@
+-Xmx{{ heap_size | default(4) }}g
+-Djavax.net.ssl.keyStoreProvider=CCJ
+-Djavax.net.ssl.trustStore=/opt/dsm/cacerts.bcfks
+-Djavax.net.ssl.trustStorePassword=changeit
+-Djavax.net.ssl.keyStoreType=BCFKS
+-Djavax.net.ssl.trustStoreType=BCFKS
+-Djdk.security.allowNonCaAnchor=true

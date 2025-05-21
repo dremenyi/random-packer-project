@@ -1,0 +1,84 @@
+- name: RHEL - Set Default User
+  ansible.builtin.set_fact:
+    default_user: ec2-user
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Set Default User
+  ansible.builtin.set_fact:
+    default_user: ubuntu
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Create Collections Directory
+  ansible.builtin.file:
+    path: /usr/share/ansible/collections
+    state: directory
+    owner: "{{ default_user }}"
+    group: "{{ default_user }}"
+    mode: "0755"
+  become: true
+
+- name: RHEL8 tasks
+  when: ansible_facts['distribution'] == 'RedHat'
+  block:
+    - name: Install required packages
+      ansible.builtin.package:
+        name:
+          - git
+          - gcc
+          - python3.11-devel
+          - krb5-devel
+          - dos2unix
+        state: present
+      become: true
+
+    - name: Upgrade wheel package
+      ansible.builtin.pip:
+        name: wheel
+        state: latest
+        umask: "0022"
+      become: true
+
+    - name: Install ansible-core
+      ansible.builtin.pip:
+        name: ansible-core
+        state: latest
+        umask: "0022"
+      become: true
+
+    - name: Install Required Python Packages
+      ansible.builtin.pip:
+        name:
+          - requests
+          - pywinrm[kerberos]
+          - boto3
+          - netaddr
+          - lxml
+          - botocore
+        state: latest
+        umask: "0022"
+      become: true
+
+### END RHEL8 BLOCK ###
+
+- name: Add /usr/local/bin to sudoers path
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: "^Defaults    secure_path = /sbin:/bin:/usr/sbin:/usr/bin"
+    line: "Defaults    secure_path = /sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin"
+    validate: "/usr/sbin/visudo -cf %s"
+  become: true
+
+- name: Copy requirements file
+  ansible.builtin.copy:
+    src: requirements.yml
+    dest: /tmp/requirements.yml
+    mode: "0644"
+
+- name: Install collections
+  community.general.ansible_galaxy_install:
+    type: collection
+    requirements_file: /tmp/requirements.yml # on remote source
+    dest: /usr/share/ansible/collections
+  become: true
+  become_user: "{{ default_user }}"

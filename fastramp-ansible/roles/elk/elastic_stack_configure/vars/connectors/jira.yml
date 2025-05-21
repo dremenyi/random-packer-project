@@ -1,0 +1,9 @@
+jira_connector:
+  name: jira-connector
+  connector_type_id: .jira
+  config:
+    apiUrl: "https://jira.{{ ansible_domain }}"
+    projectKey: CMS
+  secrets:
+    email: admin
+    apiToken: "{{ lookup('amazon.aws.aws_ssm', '/production/mgmt/jira/' + 'admin', endpoint=ssm_endpoint) }}"

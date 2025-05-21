@@ -1,0 +1,2 @@
+rhel_08_010590: false # Coalfire Edit: Needed on ansible controller to properly run Selenium automation.
+rhel_08_020035_idlesessiontimeout: 3600  # Note Only: Ansible headless instance requires a longer timeout

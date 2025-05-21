@@ -1,0 +1,25 @@
+- name: Download license manifest from S3 bucket
+  amazon.aws.s3_object:
+    aws_config:
+      s3:
+        addressing_style: virtual
+    bucket: "{{ install_s3_bucket }}"
+    object: tower/manifest.zip
+    dest: /tmp/manifest.zip
+    mode: get
+    overwrite: latest # "different" uses MD5 which is disabled in FIPS mode
+    region: "{{ aws_region }}"
+    endpoint_url: "https://s3-fips.{{ aws_region }}.amazonaws.com"
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set the license using a file
+  ansible.tower.tower_license:
+    manifest: "/tmp/manifest.zip"
+    eula_accepted: true
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"
+
+- name: Remove license manifest
+  ansible.builtin.file:
+    path: /tmp/manifest.zip
+    state: absent

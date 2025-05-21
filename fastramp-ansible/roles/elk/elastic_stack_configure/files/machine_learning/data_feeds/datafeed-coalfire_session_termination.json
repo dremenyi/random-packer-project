@@ -1,0 +1,48 @@
+{
+    "datafeed_id" : "datafeed-coalfire_session_termination",
+    "job_id" : "coalfire_session_termination",
+    "query_delay" : "61811ms",
+    "indices" : [
+      "*beat*"
+    ],
+    "query" : {
+      "bool" : {
+        "should" : [
+          {
+            "bool" : {
+              "should" : [
+                {
+                  "match_phrase" : {
+                    "event.action" : "logged-out"
+                  }
+                }
+              ],
+              "minimum_should_match" : 1
+            }
+          },
+          {
+            "bool" : {
+              "should" : [
+                {
+                  "match_phrase" : {
+                    "event.action" : "user_logout"
+                  }
+                }
+              ],
+              "minimum_should_match" : 1
+            }
+          }
+        ],
+        "minimum_should_match" : 1,
+        "filter" : [ ],
+        "must_not" : [ ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

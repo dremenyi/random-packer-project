@@ -1,0 +1,18 @@
+- name: AWS - Execute Selenium Python script to create an API key
+  ansible.builtin.command: >
+    xvfb-run -a --server-args="-screen 0 1920x1080x24" {{ python_binary }} files/aws/chrome_create_api_key.py --url https://{{ inventory_hostname }}.{{ ansible_domain }}:4119 --dsmsecretspath {{ dsm_secrets_path }} --region {{ aws_region }}
+     --adsecretspath {{ ad_secrets_path }}  --basedn "OU=All Users,{{ dom_disname }}" --domain {{ ansible_domain }}  --kmskeyid {{ ssm_parameter_store_key_id }} --endpointurl {{ ssm_endpoint }}
+  args:
+    chdir: "{{ role_path }}"
+  register: create_api_key
+  delegate_to: localhost
+  changed_when: create_api_key.stdout_lines | select("match", ".*Selenium trenddsm script completed.*")
+  delay: 60
+  retries: 1
+  until: create_api_key is not failed
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Debug create_api_key
+  ansible.builtin.debug:
+    var: create_api_key.stdout_lines

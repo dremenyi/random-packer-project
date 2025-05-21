@@ -1,0 +1,28 @@
+- name: Download license manifest from S3 bucket
+  amazon.aws.s3_object:
+    aws_config:
+      s3:
+        addressing_style: virtual
+    bucket: "{{ install_s3_bucket }}"
+    object: aap/manifest.zip
+    dest: /tmp/manifest.zip
+    mode: get
+    overwrite: never # "different" uses MD5 which is disabled in FIPS mode
+    region: "{{ aws_region }}"
+    endpoint_url: "https://s3-fips.{{ aws_region }}.amazonaws.com"
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set the license using a file
+  awx.awx.license:
+    manifest: "/tmp/manifest.zip"
+    #eula_accepted: true
+    controller_host: "{{ controller_api_url }}"
+    #controller_oauthtoken: "{{aap_controller_admin_api_token }}"
+    controller_username: admin
+    controller_password: "{{ controller_password }}"
+    validate_certs: true
+
+- name: Remove license manifest
+  ansible.builtin.file:
+    path: /tmp/manifest.zip
+    state: absent

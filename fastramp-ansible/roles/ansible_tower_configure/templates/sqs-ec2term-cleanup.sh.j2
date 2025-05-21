@@ -1,0 +1,99 @@
+#!/bin/bash
+# Create a cronjob in /etc/cron.d/sqs-ec2term-cleanup.sh
+# Execute process to read the sqs termination que and remove any entries from Active Directory
+#*/1 * * * * root /root/sqs-ec2term-cleanup.sh us-gov-west-1 terminatedEC2Queue > /dev/null 2>&1
+
+domainname="{{ ansible_domain }}"
+logon_user="svc_dj"
+smDjUserPath="{{ ad_secrets_path }}svc_dj" 
+
+init()
+{
+if [ "$#" -ne 2 ]
+then
+        echo "usage $0 RegionName QueueName"
+        exit 1
+else
+        RegionName=$1
+        QueueName=$2
+
+fi
+
+}
+
+get_queue_url()
+{
+        #Finds the URL of the sqs queue holding the termination messages
+        QUEUE_URL=`aws sqs --region "$2" get-queue-url --queue-name=$1 --output=text`
+}
+
+get_message_count()
+{
+    #gets the total messages in the queue
+    MESSAGECOUNT=`aws sqs --region "$2" get-queue-attributes --queue-url "$1" --attribute-names ApproximateNumberOfMessages`
+    numOfMessages=$(echo "$MESSAGECOUNT" | jq ".Attributes.ApproximateNumberOfMessages|tonumber")
+    echo "Number of messages :" $numOfMessages
+}
+
+get_messages()
+{
+    #Retrieves message from SQS queue 1 at a time.
+    MESSAGES=`aws sqs --region "$2" receive-message --queue-url "$1" --max-number-of-messages 1 --output=json`
+    echo "$MESSAGES"
+    #numOfMessages=$(echo "$MESSAGES" | jq '.Messages | length')
+}
+
+do_something()
+{
+    #Get hostname from SQS Message body
+    hostname=`grep -oP ":\K.*" <<< "$body"`
+    lhostname=`echo $hostname | tr "[:upper:]" "[:lower:]"`
+
+    # Remove from AD, authenticating as deploy user
+    echo `aws secretsmanager get-secret-value --secret-id "${smDjUserPath}" --region "$2" | jq -r '.SecretString'` | /usr/sbin/adcli delete-computer --domain=$domainname --login-user=$logon_user $lhostname --stdin-password -v
+    #echo "Removing computer $lhostname from $domainname"
+    err=$?
+
+    return $err
+
+}
+
+deleteMessage()
+{
+    #Removes message from SQS queue once processing completes
+    echo $3
+    aws sqs --region "$2" delete-message  --queue-url "$1" --receipt-handle $3
+
+}
+
+startTime=$(date)
+echo started at $startTime
+init $1 $2
+echo $QueueName
+get_queue_url $QueueName $RegionName
+echo $QUEUE_URL
+get_message_count $QUEUE_URL $RegionName
+#echo "Number of messages :" $numOfMessages
+if [ -z "$numOfMessages" ]
+then
+        numOfMessages=0
+fi
+if [ "$numOfMessages" -eq 0 ]
+then
+        echo "No messages in queue: "$QUEUE_URL
+        exit 1
+fi
+
+#Recurse through number of messages
+for i in `seq 1 $numOfMessages`
+do
+        get_messages $QUEUE_URL $RegionName
+        #id=$((i - 1))
+        body=`echo $MESSAGES | jq -r '.Messages['0'] | .Body'`
+        do_something $body $RegionName
+        rcptHandle=`echo $MESSAGES | jq -r --arg body "$body" '.Messages[] |select(.Body==$body)|.ReceiptHandle'`
+        echo "Deleting Message from Queue"
+        deleteMessage $QUEUE_URL $RegionName $rcptHandle
+done
+endTime=$(date)
+echo ended at $endTime

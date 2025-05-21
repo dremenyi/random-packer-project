@@ -1,0 +1,6 @@
+splunk_package_url: "https://download.splunk.com/products/splunk/releases/{{ splunk_package_version }}/linux/splunk-{{ splunk_package_version }}-{{ build_id }}.x86_64.rpm"
+# Append ".sha512" to the download URL to get the file hash
+splunk_installer_hash: 1ec8e514fb5be78dd2c3292e0edab7e25c4e9eed252ac67b8348c535c52b5b90b56e04096246fec39d16e1478fb8b5b0d880e958dea6543110663d9694326d4b
+splunk_installer_name: splunk_full.rpm
+root_ca_store: /etc/pki/ca-trust/source/anchors/cacert.pem
+update_ca_handler: rhel update ca trust

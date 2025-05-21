@@ -1,0 +1,35 @@
+- name: Find Base GPOs
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/base/GPOs"
+    recurse: false
+    file_type: directory
+  register: base_gpos
+  delegate_to: localhost
+
+- name: Copy Base GPOs
+  ansible.windows.win_copy:
+    src: base/GPOs
+    dest: "{{ app_dir }}"
+    recurse: true
+    force: true
+
+- name: Find Base GPO bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ item.path }}"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: base_gpos_bkupinfo_find
+  delegate_to: localhost
+  loop: "{{ base_gpos.files }}"
+
+- name: Initialize empty list
+  ansible.builtin.set_fact:
+    base_gpo_xml_list: []
+
+- name: Run XML lookup
+  ansible.builtin.include_tasks: base_gpo_xml_lookup.yml
+  loop: "{{ base_gpos_bkupinfo_find.results }}"
+
+- name: Debug base_gpo_xml_list
+  ansible.builtin.debug:
+    var: base_gpo_xml_list

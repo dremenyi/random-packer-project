@@ -1,0 +1,75 @@
+- name: Read Root Certificate Store
+  community.windows.win_certificate_info:
+    store_name: Root
+  register: ca_cert
+
+- name: Use JSON to get CA Certificate Thumbprint
+  ansible.builtin.set_fact:
+    root_ca_thumbprint: "{{ ca_cert | community.general.json_query(query) | first }}"
+  vars:
+    query: "certificates[? (@.issued_by == '{{ ca_common_name }}')][].thumbprint"
+
+- name: Export certificate as PEM encoded file
+  ansible.windows.win_certificate_store:
+    path: "{{ app_dir }}root_ca_pub.pem"
+    state: exported
+    file_type: pem
+    thumbprint: "{{ root_ca_thumbprint }}"
+
+- name: Slurp Certificate
+  ansible.builtin.slurp:
+    src: "{{ app_dir }}root_ca_pub.pem"
+  register: root_ca_certificate
+
+- name: Create temp file to store certificate contents
+  ansible.builtin.tempfile:
+    state: file
+  register: ca_temp_file
+  delegate_to: localhost
+
+- name: Copy Root CA contents
+  ansible.builtin.copy:
+    content: "{{ root_ca_certificate['content'] | b64decode }}"
+    dest: "{{ ca_temp_file.path }}"
+    mode: "0600"
+  delegate_to: localhost
+
+- name: Sanitize Root CA file
+  ansible.builtin.command: "dos2unix {{ ca_temp_file.path }}"
+  delegate_to: localhost
+  register: sanitize_root_ca
+  changed_when: '"converting file" in sanitize_root_ca.stderr' # This program puts normal progress into stderr stream.
+
+- name: Slurp Sanitized Certificate
+  ansible.builtin.slurp:
+    src: "{{ ca_temp_file.path }}"
+  register: clean_root_ca_certificate
+  delegate_to: localhost
+
+# Note: The ansible module was not used as it overwrites the resource policy (deletes it) if you don't specify one.
+- name: Add Root CA Public Certificate to AWS Secrets Manager
+  ansible.builtin.command: >
+    aws secretsmanager put-secret-value --secret-id "{{ ca_secrets_path }}root_ca_pub.pem"
+     --secret-string "{{ clean_root_ca_certificate['content'] | b64decode }}" --region "{{ aws_region }}" --endpoint-url "{{ secrets_endpoint }}"
+  delegate_to: localhost
+  register: aws_put_secret
+  changed_when: aws_put_secret.rc == 0
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Add Root CA Public Certificate to AWS SSM Parameter Store
+  community.aws.ssm_parameter:
+    name: "{{ ca_secrets_path }}root_ca_pub.pem"
+    state: present
+    string_type: "SecureString"
+    value: "{{ clean_root_ca_certificate['content'] | b64decode }}"
+    region: "{{ aws_region }}"
+    key_id: "{{ ssm_parameter_store_key_id }}"
+    endpoint_url: "{{ ssm_endpoint }}"
+  delegate_to: localhost
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Remove temp file
+  ansible.builtin.file:
+    path: "{{ ca_temp_file.path }}"
+    state: absent
+  delegate_to: localhost

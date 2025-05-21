@@ -1,0 +1,46 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    - name: Get Available Integration Packages
+      ansible.builtin.uri:
+        url: "{{ kibana_api_url }}/api/fleet/epm/packages"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: GET
+        force_basic_auth: true
+        status_code: 200
+      register: get_integration_packages
+      changed_when: false
+
+    - name: Set Fleet Server Package Version
+      ansible.builtin.set_fact:
+        fleet_server_version: "{{ get_integration_packages.json | community.general.json_query( field_query ) | first }}"
+      vars:
+        field_query: "items[?name=='fleet_server'].version"
+
+    # 200 = Successful
+    # 400 = Already exists
+    - name: Add Fleet Server Integration
+      ansible.builtin.uri:
+        url: "{{ kibana_api_url }}/api/fleet/package_policies"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: POST
+        force_basic_auth: true
+        status_code: 200, 400
+        headers:
+          kbn-xsrf: true
+        body_format: json
+        body:
+          policy_id: "{{ fleet_policy_id }}"
+          package:
+            name: fleet_server
+            version: "{{ fleet_server_version }}"
+          name: fleet_server-default
+          namespace: fleet
+          inputs:
+            fleet_server-fleet-server:
+              enabled: true
+        timeout: 120
+      register: add_fleet_server_integration
+      changed_when: add_fleet_server_integration.status == 200

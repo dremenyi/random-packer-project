@@ -1,0 +1,37 @@
+- name: Create App Directory
+  ansible.windows.win_file:
+    path: "{{ app_dir }}"
+    state: directory
+
+- name: Add svc_ansible_da to Schema Admins
+  microsoft.ad.group:
+    name: Schema Admins
+    members:
+      add:
+        - svc_ansible_da
+    state: present
+
+- name: Download Authlite installer
+  ansible.windows.win_get_url:
+    url: "{{ authlite_download_url }}"
+    dest: "{{ app_dir }}AuthLite_installer_x64.msi"
+
+- name: Check SHA256 Hash of file with stat
+  ansible.windows.win_stat:
+    path: "{{ app_dir }}AuthLite_installer_x64.msi"
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: authlite_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - authlite_file.stat.checksum == authlite_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ authlite_file.stat.checksum }}, the expected hash is {{ authlite_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Install authlite with arguments
+  ansible.windows.win_package:
+    path: "{{ app_dir }}AuthLite_installer_x64.msi"
+    arguments: "ADDLOCAL=Replica,DataManager,AdminAPI,AdminShortcut,AuthLiteDriver"
+  notify: reboot server

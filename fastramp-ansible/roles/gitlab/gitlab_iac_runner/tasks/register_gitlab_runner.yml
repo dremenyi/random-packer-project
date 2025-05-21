@@ -1,0 +1,52 @@
+- name: Add a setting to ~/.gitconfig
+  community.general.git_config:
+    name: http.sslCAInfo
+    scope: system
+    value: /etc/gitlab/ssl/cacert.pem
+    state: present
+  become: true
+
+- name: Get Oauth token
+  ansible.builtin.uri:
+    url: "{{ gitlab_api_url }}oauth/token"
+    method: POST
+    body_format: form-urlencoded
+    status_code: 200
+    body:
+      grant_type: password
+      username: root
+      password: "{{ initial_root_password }}"
+  register: oauth_token
+  no_log: true
+
+- name: Get authentication token to register runner
+  ansible.builtin.uri:
+    url: "{{ gitlab_api_url }}api/v4/user/runners"
+    method: POST
+    body_format: json
+    status_code: 201
+    headers:
+      Authorization: "Bearer {{ oauth_token.json.access_token }}"
+    body:
+      runner_type: instance_type
+  register: authentication_token
+
+- name: Revoke Oauth token
+  ansible.builtin.uri:
+    url: "{{ gitlab_api_url }}oauth/revoke"
+    method: POST
+    body_format: form-urlencoded
+    status_code: 200
+    body:
+      token: "{{ oauth_token.json.access_token }}"
+  register: revoke_oauth_token
+
+- name: Register Gitlab Runner
+  ansible.builtin.command:
+    cmd: >
+      /usr/bin/gitlab-runner register --non-interactive --token "{{ authentication_token.json.token }}"  --url {{ gitlab_api_url }}  --executor shell
+      --tls-ca-file /etc/gitlab/ssl/cacert.pem
+  register: register_gitlab_runner
+  changed_when: register_gitlab_runner.stderr_lines | select("match", ".*Runner registered successfully.*")
+  become: true
+  no_log: false

@@ -1,0 +1,38 @@
+{
+    "datafeed_id" : "datafeed-user_changes_coalfire",
+    "job_id" : "user_changes_coalfire",
+    "query_delay" : "84894ms",
+    "indices" : [
+      "auditbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "must" : [
+          {
+            "match_all" : { }
+          }
+        ],
+        "filter" : [
+          {
+            "match_phrase" : {
+              "event.dataset" : "user"
+            }
+          }
+        ],
+        "must_not" : [
+          {
+            "match_phrase" : {
+              "event.action" : "existing_user"
+            }
+          }
+        ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

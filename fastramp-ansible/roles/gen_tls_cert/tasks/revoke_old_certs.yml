@@ -1,0 +1,24 @@
+- name: Check if certificate exists and get serial numbers
+  ansible.windows.win_powershell:
+    script: |
+      $Result = certutil.exe -view -restrict "CommonName={{ app_name }}.{{ ansible_domain }}" -out 'Serial Number, Revocation Date' csv | ConvertFrom-Csv
+      $PreString1 = $Result | Where-Object { ($_."Revocation Date" -eq "EMPTY") -and ( $_."Serial Number" -ne "EMPTY")}
+      $String = $PreString1 | Select-Object -Property "Serial Number" | ConvertTo-Csv -NoTypeInformation | Select-Object -Skip 1
+      $FormattedString = $null
+      if($String -ne $null){
+        $String1 = $String.replace('"','')
+        $FormattedString = $String1 -Join ','
+      }
+      $Ansible.result = $FormattedString
+    error_action: stop
+  register: view_cert
+  changed_when: false
+  delegate_to: ca1
+
+- name: Revoke old certificates
+  ansible.windows.win_command:
+    cmd: "certutil.exe -revoke {{ view_cert.result }}"
+  delegate_to: ca1
+  when: view_cert.result is not none
+  register: revoke_result
+  changed_when: "'command completed successfully' in revoke_result.stdout"

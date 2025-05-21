@@ -1,0 +1,3 @@
+platform_version: RedHat_EL
+major_version: 8
+package: agent.rpm

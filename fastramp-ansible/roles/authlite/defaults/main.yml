@@ -1,0 +1,4 @@
+lin_authlite_pam_download_url: https://s3.authlite.com/downloads/2.4/pam_authlite-2.4.6.1.tar.gz
+lin_authlite_pam_file_hash: 25afbd174791c13e984154936186bd61dba9977d17b867d9886c16e69a2f5308
+lin_app_dir: /opt/coalfire
+lin_authlite_pam_name: pam_authlite-2.4.6.1.tar.gz

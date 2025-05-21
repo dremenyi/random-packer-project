@@ -1,0 +1,99 @@
+# This code attempts to set heap_size to half of total RAM
+- name: Set heap_size
+  ansible.builtin.set_fact:
+    heap_size: "{{ (( ansible_memtotal_mb / 1024.0) | round(0, 'ceil') | int ) // 2 }}"
+  tags:
+    - molecule-notest
+
+- name: Add 1 to heap_size if not even number
+  ansible.builtin.set_fact:
+    heap_size: "{{ heap_size | int + 1 }}"
+  when: heap_size | int is not divisibleby 2
+  tags:
+    - molecule-notest
+
+- name: Limit heap size to 32GB
+  ansible.builtin.set_fact:
+    heap_size: 32
+  when: heap_size | int > 32
+  tags:
+    - molecule-notest
+
+- name: Debug heap_size
+  debug:
+    var: heap_size
+  tags:
+    - molecule-notest
+
+- name: Stop elasticsearch
+  ansible.builtin.service:
+    name: elasticsearch
+    state: stopped
+  become: true
+
+- name: Configure Limits
+  include_tasks: configure_limits.yml
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Copy Templates
+  include_tasks: copy_templates.yml
+
+- name: Set Bootstrap Password
+  include_tasks: set_bootstrap_password.yml
+
+- name: Ensure correct permissions on /opt
+  ansible.builtin.file:
+    path: /opt
+    owner: elasticsearch
+    group: elasticsearch
+    state: directory
+    recurse: true
+  become: true
+
+- name: Restart elasticsearch
+  ansible.builtin.service:
+    name: elasticsearch
+    state: restarted
+    enabled: true
+  become: true
+
+- name: Pause 30 seconds
+  ansible.builtin.pause:
+    seconds: 30
+
+- name: Check Cluster Health
+  ansible.builtin.uri:
+    url: "{{ elastic_api_url }}/_cluster/health?wait_for_status=yellow&timeout=50s"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: GET
+    force_basic_auth: yes
+    status_code:  200
+    timeout: 120
+  register: cluster_health
+
+- name: Debug cluster_health
+  debug:
+    var: cluster_health.json
+
+- name: Set user passwords
+  ansible.builtin.uri:
+    url: "{{ elastic_api_url }}/_security/user/{{ item }}/_password"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: POST
+    body_format: json
+    force_basic_auth: yes
+    status_code: 200
+    body:
+      password: "{{ elastic_password }}"
+  register: set_password
+  changed_when: set_password.status == 200
+  loop:
+    - kibana_system
+    - logstash_system
+    - apm_system
+    - beats_system
+  run_once: true

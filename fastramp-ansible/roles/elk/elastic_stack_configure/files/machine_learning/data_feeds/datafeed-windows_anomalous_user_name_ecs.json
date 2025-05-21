@@ -1,0 +1,32 @@
+{
+    "datafeed_id" : "datafeed-windows_anomalous_user_name_ecs",
+    "job_id" : "windows_anomalous_user_name_ecs",
+    "query_delay" : "67231ms",
+    "indices" : [
+      "winlogbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "filter" : [
+          {
+            "term" : {
+              "event.action" : "Process Create (rule: ProcessCreate)"
+            }
+          },
+          {
+            "term" : {
+              "agent.type" : "winlogbeat"
+            }
+          }
+        ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    },
+    "max_empty_searches" : 10
+  }

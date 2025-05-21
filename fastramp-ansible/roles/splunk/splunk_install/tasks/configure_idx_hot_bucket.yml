@@ -1,0 +1,92 @@
+- name: Initialize variable
+  ansible.builtin.set_fact:
+    free_disks: []
+
+- name: Identify a Free Disk with no partitions
+  ansible.builtin.set_fact:
+    free_disks: "{{ free_disks + ['/dev/' + item['key']] }}"
+  with_items:
+    - "{{ ansible_devices | dict2items }}"
+  when:
+    - item['value']['model'] == "Amazon EC2 NVMe Instance Storage"
+    - item['value']['partitions']|length == 0
+
+- name: Install LVM2
+  ansible.builtin.package:
+    name: lvm2
+    state: present
+  become: true
+
+- name: Create Volume Group
+  community.general.lvg:
+    vg: instancevg
+    pvs: "{{ free_disks | join(',') }}"
+  become: true
+
+- name: Create lvol
+  community.general.lvol:
+    vg: instancevg
+    lv: cache-lv
+    size: 100%VG
+    opts: "--type raid0 --stripes {{ free_disks | length }}"
+  become: true
+
+- name: Create filesystem
+  community.general.filesystem:
+    fstype: xfs
+    dev: /dev/instancevg/cache-lv
+    opts: -K
+  become: true
+
+- name: Create Mountpoint
+  ansible.builtin.file:
+    path: /cache
+    state: directory
+    mode: "0755"
+  become: true
+
+# - name: Mount logical volume
+#   ansible.builtin.command: mount /dev/mapper/instancevg-cache--lv /cache
+#   ignore_errors: true
+#   become: true
+
+- name: Mount logical volume
+  ansible.posix.mount:
+    path: /cache
+    src: /dev/mapper/instancevg-cache--lv
+    state: ephemeral
+    fstype: xfs
+  become: true
+
+- name: Change owner of /cache
+  ansible.builtin.file:
+    path: /cache
+    state: directory
+    owner: splunk
+    group: splunk
+    recurse: true
+  become: true
+
+- name: Set Splunkd to disabled
+  ansible.builtin.service:
+    name: Splunkd
+    state: started
+    enabled: false
+  become: true
+
+- name: Copy Create Hot Bucket LVM script from template
+  ansible.builtin.template:
+    src: create-hot-bucket-lvm.sh.j2
+    dest: /root/create-hot-bucket-lvm.sh
+    force: true
+    mode: "0744"
+  become: true
+
+- name: Creates Create Hot Bucket LVM cron job
+  ansible.builtin.cron:
+    name: Create Hot Bucket LVM
+    user: root
+    job: "/root/create-hot-bucket-lvm.sh > /tmp/create-hot-bucket-lvm.log 2>&1"
+    special_time: reboot
+    state: present
+  become: true

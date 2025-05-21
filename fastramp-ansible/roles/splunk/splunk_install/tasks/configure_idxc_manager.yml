@@ -1,0 +1,41 @@
+- name: Configure clustering stanza for cluster manager node
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: clustering
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "mode", value: "manager" }
+    - { option: "replication_factor", value: "{{ splunk_idxc_rf }}" }
+    - { option: "search_factor", value: "{{ splunk_idxc_sf }}" }
+    - { option: "cluster_label", value: "idxclusterSSL" }
+
+- name: Configure pass4symmKey server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: clustering
+    option: pass4SymmKey
+    value: "{{ pass_4_symm_key }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  no_log: true
+  notify: restart splunk
+
+- name: Deploy indexes.conf from template
+  ansible.builtin.template:
+    src: indexes.conf.j2
+    dest: "/opt/splunk/etc/master-apps/_cluster/local/indexes.conf"
+    owner: splunk
+    group: splunk
+    mode: "0644"
+    force: true
+  become: true
+  notify: restart splunk
+  tags:
+    - molecule-notest

@@ -1,0 +1,46 @@
+---
+
+# For Molecule
+is_container: false
+
+# https://www.splunk.com/en_us/download/splunk-enterprise.html?locale=en_us
+# Download and view "downloads" in Google Chrome to get the download URL
+splunk_package_version: 9.1.2
+build_id: b6b9c8185839
+
+splunk_license_group: "Enterprise"
+
+splunk_uri_lm: "https://splunkds1.{{ ansible_domain }}:8089"
+splunk_uri_cm: "https://splunkcm1.{{ ansible_domain }}:8089"
+splunk_uri_ds: "https://splunkds1.{{ ansible_domain }}:8089"
+
+cipher_suite: ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+ecdh_curves: prime256v1, secp384r1, secp521r1
+
+# IDXC Vars
+splunk_idxc_rf: 2
+splunk_idxc_sf: 2
+
+# Indexes
+indexes:
+  - _audit
+  - _thefishbucket
+  - _introspection
+  - _internal
+  - _telemetry
+  - ansible
+  - main
+  - summary
+  - history
+  - os
+  - windows
+  - wineventlog
+  - perfmon
+  - msad
+  - aws
+  - jira
+  - trendmicro
+  - tenable
+  - prod_aws
+  - entra
+  - gitlab

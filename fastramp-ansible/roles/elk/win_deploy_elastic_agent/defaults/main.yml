@@ -1,0 +1,8 @@
+---
+fleet_server_url: "https://esingest1.{{ ansible_domain }}:8220"
+elastic_version: 8.7.1
+elastic_installer: "elastic-agent-{{ elastic_version }}-windows-x86_64.zip"
+elastic_installer_file_hash_name: "elastic-agent-{{ elastic_version }}-windows-x86_64.zip.sha512"
+download_url: "https://artifacts.elastic.co/downloads/beats/elastic-agent/{{ elastic_installer }}"
+# Append ".sha512" to the download URL to get the hash
+# elastic_installer_hash: 77298c02bb3f0e6a7ad03e7e8ea4f7539984266cda807f242c04e9d53403eaad0e32f7cbfdc41d07537a5eb5167167a72cd8a4bd47d63baecc37a5903cd5c13f

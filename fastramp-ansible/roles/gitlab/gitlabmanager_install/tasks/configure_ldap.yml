@@ -1,0 +1,22 @@
+- name: Delegate to DC1
+  delegate_to: dc1
+  run_once: true
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars[inventory_hostname]['svc_ansible_da_password'] }}"
+  block:
+    - name: Create Read-Only account for LDAPS use
+      microsoft.ad.user:
+        name: svc_gitlab
+        firstname: Service
+        surname: gitlab
+        password_never_expires: true
+        path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+        password: "{{ svc_gitlab_password }}"
+        update_password: when_changed
+
+    - name: Create GitlabAdmins AD Group
+      microsoft.ad.group:
+        name: "GitlabAdmins"
+        scope: global
+        path: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"

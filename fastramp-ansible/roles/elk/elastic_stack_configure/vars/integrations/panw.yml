@@ -1,0 +1,75 @@
+panw_integration:
+  policy_id: "{{ policy_id }}"
+  package:
+    name: panw
+    version: "{{ package_version }}"
+  name: panw-ingest
+  description: ""
+  namespace: "{{ item.policy_namespace }}"
+  inputs:
+    panw-tcp:
+      enabled: true
+      streams:
+        panw.panos:
+          enabled: true
+          vars:
+            syslog_host: 0.0.0.0
+            syslog_port: "5515"
+            tags:
+              - panw-panos
+              - forwarded
+            internal_zones:
+              - trust
+            external_zones:
+              - untrust
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false
+            tz_offset: Local
+            ssl: |
+              certificate: "/etc/elasticsearch/certs/server.cer"
+              key: "/etc/elasticsearch/certs/server_unenc.key"
+            tcp_options: |
+              max_message_size: 50KiB
+              #max_connections: 1
+              #framing: delimiter
+              #line_delimiter: "\n"
+    panw-udp:
+      enabled: false
+      streams:
+        panw.panos:
+          enabled: false
+          vars:
+            syslog_host: localhost
+            syslog_port: 9001
+            tags:
+              - panw-panos
+              - forwarded
+            internal_zones:
+              - trust
+            external_zones:
+              - untrust
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false
+            tz_offset: Local
+            udp_options: |
+              max_message_size: 50KiB
+              #timeout: 300s
+    panw-logfile:
+      enabled: false
+      vars:
+        paths:
+          - "/var/log/pan-os.log"
+      streams:
+        panw.panos:
+          enabled: false
+          vars:
+            tz_offset: local
+            tags:
+              - panw-panos
+              - forwarded
+            internal_zones:
+              - trust
+            external_zones:
+              - untrust
+            preserve_original_event: false
+            preserve_duplicate_custom_fields: false

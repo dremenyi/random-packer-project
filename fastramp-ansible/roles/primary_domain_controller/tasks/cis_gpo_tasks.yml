@@ -1,0 +1,257 @@
+### Domain Controller Policy ###
+- name: Find AWS CIS DC GPO
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/DC"
+    recurse: false
+    file_type: directory
+  register: dc_gpo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Copy DC GPO
+  ansible.windows.win_copy:
+    src: "{{ dc_gpo.files[0].path }}"
+    dest: "{{ app_dir }}GPOs"
+    recurse: true
+    force: true
+
+- name: Find AWS CIS DC bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/DC"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: dc_gpo_bkupinfo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Read CIS DC GPO XML
+  community.general.xml:
+    path: "{{ dc_gpo_bkupinfo.files[0].path }}"
+    content: text
+    xpath: "{{ item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: dc_xml
+  delegate_to: localhost
+  loop:
+    - /x:BackupInst/x:GPOGuid
+    - /x:BackupInst/x:GPODomain
+    - /x:BackupInst/x:GPODomainGuid
+    - /x:BackupInst/x:GPODomainController
+    - /x:BackupInst/x:BackupTime
+    - /x:BackupInst/x:ID
+    - /x:BackupInst/x:Comment
+    - /x:BackupInst/x:GPODisplayName
+
+### Server Policy ###
+- name: Find AWS CIS Server GPO
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/Server"
+    recurse: false
+    file_type: directory
+  register: server_gpo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Copy Server GPO
+  ansible.windows.win_copy:
+    src: "{{ server_gpo.files[0].path }}"
+    dest: "{{ app_dir }}GPOs"
+    recurse: true
+    force: true
+
+- name: Find AWS CIS Server bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/Server"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: server_gpo_bkupinfo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Read CIS Server GPO XML
+  community.general.xml:
+    path: "{{ server_gpo_bkupinfo.files[0].path }}"
+    content: text
+    xpath: "{{ item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: server_xml
+  delegate_to: localhost
+  loop:
+    - /x:BackupInst/x:GPOGuid
+    - /x:BackupInst/x:GPODomain
+    - /x:BackupInst/x:GPODomainGuid
+    - /x:BackupInst/x:GPODomainController
+    - /x:BackupInst/x:BackupTime
+    - /x:BackupInst/x:ID
+    - /x:BackupInst/x:Comment
+    - /x:BackupInst/x:GPODisplayName
+
+### Server NTLM Policy ###
+- name: Find CIS Server NTLM GPO
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/base/CIS/GPOs/server_ntlm"
+    recurse: false
+    file_type: directory
+  register: server_ntlm_gpo
+  delegate_to: localhost
+
+- name: Copy Server NTLM GPO
+  ansible.windows.win_copy:
+    src: "{{ server_ntlm_gpo.files[0].path }}"
+    dest: "{{ app_dir }}GPOs"
+    recurse: true
+    force: true
+
+- name: Find CIS Server NTLM bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/base/CIS/GPOs/server_ntlm"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: server_ntlm_gpo_bkupinfo
+  delegate_to: localhost
+
+- name: Read CIS Server NTLM GPO XML
+  community.general.xml:
+    path: "{{ server_ntlm_gpo_bkupinfo.files[0].path }}"
+    content: text
+    xpath: "{{ item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: server_ntlm_xml
+  delegate_to: localhost
+  loop:
+    - /x:BackupInst/x:GPOGuid
+    - /x:BackupInst/x:GPODomain
+    - /x:BackupInst/x:GPODomainGuid
+    - /x:BackupInst/x:GPODomainController
+    - /x:BackupInst/x:BackupTime
+    - /x:BackupInst/x:ID
+    - /x:BackupInst/x:Comment
+    - /x:BackupInst/x:GPODisplayName
+
+### User Policy ###
+- name: Find AWS CIS User GPO
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/User"
+    recurse: false
+    file_type: directory
+  register: user_gpo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Copy User GPO
+  ansible.windows.win_copy:
+    src: "{{ user_gpo.files[0].path }}"
+    dest: "{{ app_dir }}GPOs"
+    recurse: true
+    force: true
+
+- name: Find AWS CIS User bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/aws/CIS/GPOs/User"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: user_gpo_bkupinfo
+  delegate_to: localhost
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Read CIS User GPO XML
+  community.general.xml:
+    path: "{{ user_gpo_bkupinfo.files[0].path }}"
+    content: text
+    xpath: "{{ item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: user_xml
+  delegate_to: localhost
+  loop:
+    - /x:BackupInst/x:GPOGuid
+    - /x:BackupInst/x:GPODomain
+    - /x:BackupInst/x:GPODomainGuid
+    - /x:BackupInst/x:GPODomainController
+    - /x:BackupInst/x:BackupTime
+    - /x:BackupInst/x:ID
+    - /x:BackupInst/x:Comment
+    - /x:BackupInst/x:GPODisplayName
+
+### Domain Password Policy ###
+- name: Find CIS Domain Password GPO
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/base/CIS/GPOs/domain_password"
+    recurse: false
+    file_type: directory
+  register: domain_password_gpo
+  delegate_to: localhost
+
+- name: Copy Domain Password GPO
+  ansible.windows.win_copy:
+    src: "{{ domain_password_gpo.files[0].path }}"
+    dest: "{{ app_dir }}GPOs"
+    recurse: true
+    force: true
+
+- name: Find CIS Domain Password bkupinfo.xml
+  ansible.builtin.find:
+    paths: "{{ role_path }}/files/base/CIS/GPOs/domain_password"
+    patterns: "bkupInfo.xml"
+    recurse: true
+  register: domain_password_gpo_bkupinfo
+  delegate_to: localhost
+
+- name: Read CIS Domain Password GPO XML
+  community.general.xml:
+    path: "{{ domain_password_gpo_bkupinfo.files[0].path }}"
+    content: text
+    xpath: "{{ item }}"
+    namespaces:
+      x: "http://www.microsoft.com/GroupPolicy/GPOOperations/Manifest"
+  register: domain_password_xml
+  delegate_to: localhost
+  loop:
+    - /x:BackupInst/x:GPOGuid
+    - /x:BackupInst/x:GPODomain
+    - /x:BackupInst/x:GPODomainGuid
+    - /x:BackupInst/x:GPODomainController
+    - /x:BackupInst/x:BackupTime
+    - /x:BackupInst/x:ID
+    - /x:BackupInst/x:Comment
+    - /x:BackupInst/x:GPODisplayName
+
+### Link GPOs ###
+- name: Create a file from a Jinja2 template
+  ansible.windows.win_template:
+    src: cis/manifest.xml.j2
+    dest: "{{ app_dir }}GPOs\\manifest.xml"
+
+- name: Import GPOs
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name GroupPolicy
+
+      #Assign GPOs
+      $Manifest = "{{ gpo_path }}manifest.xml"
+      [xml]$ManifestData = Get-Content $Manifest
+      foreach ($GPO in $ManifestData.Backups.BackupInst) {
+        Import-GPO -BackupId $GPO.ID."#cdata-section" -TargetName $GPO.GPODisplayName."#cdata-section" -MigrationTable `
+        "{{ gpo_path }}gpo-migtable.migtable" -CreateIfNeeded `
+        -Path {{ gpo_path }} -Verbose
+      }
+    error_action: stop
+  register: import_gpos
+  changed_when: import_gpos.verbose | select("match", ".*Import the GPO backup.*")
+
+# Note: Link order for each matching target is extremely important.  Must go from lowest to highest or command will error.
+- name: Link GPOs
+  ansible.windows.win_powershell:
+    script: "{{ lookup('ansible.builtin.template', 'cis/gplink.ps1.j2') }}"
+    error_action: stop
+  register: link_gpos
+  changed_when: link_gpos.verbose | select("match", ".*Create a link from.*")

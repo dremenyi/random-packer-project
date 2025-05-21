@@ -1,0 +1,17 @@
+- name: Configure splunk-launch.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/splunk-launch.conf
+    section: null
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "SPLUNK_HOME", value: "/opt/splunk/" }
+    - { option: "SPLUNK_SERVER_NAME", value: "Splunkd" }
+    - { option: "SPLUNK_WEB_NAME", value: "splunkweb" }
+    - { option: "SPLUNK_DB", value: "/opt/splunk/var/lib/splunk/" }
+    - { option: "FIPS", value: "1" }
+    - { option: "PYTHONHTTPSVERIFY", value: "1" }

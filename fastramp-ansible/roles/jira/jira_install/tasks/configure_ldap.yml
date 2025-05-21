@@ -1,0 +1,48 @@
+- name: DC1 tasks
+  delegate_to: dc1
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['jira1']['svc_ansible_da_password'] }}"
+  block:
+    - name: Create Read-Only account for LDAPS use
+      microsoft.ad.user:
+        name: svc_jira
+        firstname: Service
+        surname: Jira
+        password_never_expires: true
+        path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+        password: "{{ svc_jira_password }}"
+        update_password: when_changed
+
+    - name: Create Jira AD Groups
+      microsoft.ad.group:
+        name: "{{ item }}"
+        scope: global
+        path: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+      loop:
+        - JiraAdmins
+        - JiraUsers
+
+- name: AWS - Execute Selenium Python script to configure LDAP
+  ansible.builtin.command: >
+    xvfb-run -a --server-args="-screen 0 1920x1080x24" {{ python_binary }} files/aws/chrome_configure_ldap.py --url https://jira1.{{ ansible_domain }}:8443 --jirasecretspath {{ jira_secrets_path }} --region {{ aws_region }}
+     --adsecretspath {{ ad_secrets_path }}  --basedn "OU=All Users,{{ dom_disname }}" --domain {{ ansible_domain }} --endpointurl {{ ssm_endpoint }}
+  args:
+    chdir: "{{ role_path }}"
+  register: selenium_jira_ldap_result
+  delegate_to: localhost
+  changed_when: selenium_jira_ldap_result.stdout_lines | select("match", ".*Selenium Jira script completed.*")
+  notify: Pause # Add a pause to allow LDAP initial sync, otherwise subsequent tasks will fail
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+  delay: 60
+  retries: 1
+  until: selenium_jira_ldap_result is not failed
+
+- name: Debug selenium_jira_ldap_result
+  ansible.builtin.debug:
+    var: selenium_jira_ldap_result.stdout_lines
+
+# Flush handlers to start pause now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers

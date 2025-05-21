@@ -1,0 +1,6 @@
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /etc/elastic-agent/cacert.pem
+    mode: "0644"
+  become: true

@@ -1,0 +1,16 @@
+- name: Copy systemd disable-thp unit file
+  ansible.builtin.copy:
+    src: disable-thp.service
+    dest: /etc/systemd/system/disable-thp.service
+    mode: "0644"
+    owner: root
+    group: root
+  become: true
+  notify:
+    - reload systemctl daemon
+- name: Enable disable-thp unit file
+  ansible.builtin.service:
+    name: disable-thp
+    enabled: true
+    state: started
+  become: true

@@ -1,0 +1,4 @@
+- name: Restart CertSvc
+  ansible.windows.win_service:
+    name: CertSvc
+    state: restarted

@@ -1,0 +1,291 @@
+# Configure default splunk_app_deploy_path based on which group the host is a member of
+- name: Set default splunk_app_deploy_path for clustermanager hosts
+  ansible.builtin.set_fact:
+    splunk_app_deploy_path: etc/master-apps
+  when: "'clustermanager' in group_names"
+
+- name: Set default splunk_app_deploy_path for deploymentserver hosts
+  ansible.builtin.set_fact:
+    splunk_app_deploy_path: etc/deployment-apps
+  when: "'deploymentserver' in group_names"
+
+- name: "Set default splunk_app_deploy_path all other hosts"
+  ansible.builtin.set_fact:
+    splunk_app_deploy_path: "etc/apps"
+  when:
+    - "'clustermanager' not in group_names"
+    - "'deploymentserver' not in group_names"
+
+- name: Set correct handler for master-apps
+  ansible.builtin.set_fact:
+    handler: "apply indexer cluster bundle"
+  when: splunk_app_deploy_path == 'etc/master-apps'
+
+- name: Set correct handler for deployment-apps
+  ansible.builtin.set_fact:
+    handler: "reload deployment server"
+  when: splunk_app_deploy_path == 'etc/deployment-apps'
+
+- name: "Set default restart splunk handler for all other paths (e.g. etc/auth)"
+  ansible.builtin.set_fact:
+    handler: "restart splunk"
+  when:
+    - splunk_app_deploy_path != 'etc/deployment-apps'
+    - splunk_app_deploy_path != 'etc/master-apps'
+
+### Apps ###
+- name: Create folder for tarballs
+  ansible.builtin.file:
+    path: /opt/splunk/tarballs
+    state: directory
+    owner: splunk
+    group: splunk
+    mode: "0775"
+  become: true
+
+- name: Copy tarballs to deployment server
+  ansible.builtin.copy:
+    src: "app/{{ item.app }}.tgz"
+    dest: "/opt/splunk/tarballs/{{ item.app }}.tgz"
+    mode: "0644"
+    force: true
+  become: true
+  loop: "{{ deployment_server_apps }}"
+  when:
+    - item.tarball
+    - "'deploymentserver' in group_names"
+
+- name: Copy tarballs to search heads
+  ansible.builtin.copy:
+    src: "app/{{ item.app }}.tgz"
+    dest: "/opt/splunk/tarballs/{{ item.app }}.tgz"
+    mode: "0644"
+    force: true
+  become: true
+  loop: "{{ search_head_local_apps }}"
+  when:
+    - item.tarball
+    - "'search' in group_names"
+
+- name: Copy tarballs to cluster manager
+  ansible.builtin.copy:
+    src: "app/{{ item.app }}.tgz"
+    dest: "/opt/splunk/tarballs/{{ item.app }}.tgz"
+    mode: "0644"
+    force: true
+  become: true
+  loop: "{{ cluster_manager_apps }}"
+  when:
+    - item.tarball
+    - "'clustermanager' in group_names"
+
+- name: Copy tarballs to heavy forwarder
+  ansible.builtin.copy:
+    src: "app/{{ item.app }}.tgz"
+    dest: "/opt/splunk/tarballs/{{ item.app }}.tgz"
+    mode: "0644"
+    force: true
+  become: true
+  loop: "{{ heavy_forwarder_apps }}"
+  when:
+    - item.tarball
+    - "'heavyforwarder' in group_names"
+
+- name: Gather tarballs to list
+  ansible.builtin.find:
+    path: "/opt/splunk/tarballs"
+    file_type: file
+    recurse: true
+    patterns: "*.tgz"
+  become: true
+  register: app_tarballs
+
+- name: Install (unarchive to the folder) apps
+  ansible.builtin.unarchive:
+    src: "{{ item.path }}"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}"
+    owner: splunk
+    group: splunk
+    mode: "0755"
+    remote_src: true
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ app_tarballs.files | flatten(levels=1) }}"
+  loop_control:
+    label: "{{ item.path }}"
+  register: unarchive_apps
+
+### Inputs ###
+- name: Create /local/ directories for deployment server
+  ansible.builtin.file:
+    state: directory
+    path: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/"
+    owner: splunk
+    group: splunk
+    mode: "0775"
+  become: true
+  loop: "{{ deployment_server_apps }}"
+  when:
+    - item.inputs
+    - "'deploymentserver' in group_names"
+
+- name: Create /local/ directories for search heads as local apps
+  ansible.builtin.file:
+    state: directory
+    path: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/"
+    owner: splunk
+    group: splunk
+    mode: "0775"
+  become: true
+  loop: "{{ search_head_local_apps }}"
+  when:
+    - item.inputs
+    - "'search' in group_names"
+
+- name: Create /local/ directories for heavy forwarder
+  ansible.builtin.file:
+    state: directory
+    path: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/"
+    owner: splunk
+    group: splunk
+    mode: "0775"
+  become: true
+  loop: "{{ heavy_forwarder_apps }}"
+  when:
+    - item.inputs
+    - "'heavyforwarder' in group_names"
+
+- name: Create /local/ directories for cluster manager
+  ansible.builtin.file:
+    state: directory
+    path: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/"
+    owner: splunk
+    group: splunk
+    mode: "0775"
+  become: true
+  loop: "{{ cluster_manager_apps }}"
+  when:
+    - item.inputs
+    - "'clustermanager' in group_names"
+
+### inputs.conf ###
+- name: Create inputs.conf for deployment server apps
+  ansible.builtin.template:
+    src: "inputs/common/{{ item.app }}_inputs.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/inputs.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ deployment_server_apps }}"
+  when:
+    - item.inputs
+    - "'deploymentserver' in group_names"
+
+- name: Create inputs.conf for search heads as local apps
+  ansible.builtin.template:
+    src: "inputs/common/{{ item.app }}_inputs.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/inputs.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ search_head_local_apps }}"
+  when:
+    - item.inputs
+    - "'search' in group_names"
+
+- name: Create inputs.conf for heavy forwarder apps
+  ansible.builtin.template:
+    src: "inputs/heavyforwarder/{{ item.app }}_inputs.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/inputs.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ heavy_forwarder_apps }}"
+  when:
+    - item.inputs
+    - "'heavyforwarder' in group_names"
+
+- name: Create inputs.conf for cluster manager apps
+  ansible.builtin.template:
+    src: "inputs/common/{{ item.app }}_inputs.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/inputs.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ cluster_manager_apps }}"
+  when:
+    - item.inputs
+    - "'clustermanager' in group_names"
+
+### props.conf ###
+- name: Create props.conf for deployment server apps
+  ansible.builtin.template:
+    src: "props/common/{{ item.app }}_props.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/props.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ deployment_server_apps }}"
+  when:
+    - item.props
+    - "'deploymentserver' in group_names"
+
+- name: Create props.conf for search heads as local apps
+  ansible.builtin.template:
+    src: "props/common/{{ item.app }}_props.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/props.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ search_head_local_apps }}"
+  when:
+    - item.props
+    - "'search' in group_names"
+
+- name: Create props.conf for heavy forwarder apps
+  ansible.builtin.template:
+    src: "props/heavyforwarder/{{ item.app }}_props.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/props.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ heavy_forwarder_apps }}"
+  when:
+    - item.props
+    - "'heavyforwarder' in group_names"
+
+- name: Create props.conf for cluster manager apps
+  ansible.builtin.template:
+    src: "props/common/{{ item.app }}_props.conf.j2"
+    dest: "/opt/splunk/{{ splunk_app_deploy_path }}/{{ item.app }}/local/props.conf"
+    owner: splunk
+    group: splunk
+    force: true
+    mode: "0644"
+  become: true
+  notify: "{{ handler }}"
+  loop: "{{ cluster_manager_apps }}"
+  when:
+    - item.props
+    - "'clustermanager' in group_names"

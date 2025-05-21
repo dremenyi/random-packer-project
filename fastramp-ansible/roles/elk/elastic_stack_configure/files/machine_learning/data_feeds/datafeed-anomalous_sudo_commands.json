@@ -1,0 +1,29 @@
+{
+    "datafeed_id" : "datafeed-anomalous_sudo_commands",
+    "job_id" : "anomalous_sudo_commands",
+    "query_delay" : "101988ms",
+    "indices" : [
+      "filebeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "should" : [
+          {
+            "exists" : {
+              "field" : "system.auth.sudo"
+            }
+          }
+        ],
+        "minimum_should_match" : 1,
+        "filter" : [ ],
+        "must_not" : [ ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

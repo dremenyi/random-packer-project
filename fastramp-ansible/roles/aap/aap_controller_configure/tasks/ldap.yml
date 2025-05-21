@@ -1,0 +1,37 @@
+- name: Set the LDAP Auth Bind Password
+  awx.awx.settings:
+    name: "AUTH_LDAP_BIND_PASSWORD"
+    value: "{{ svc_aap_password }}"
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true
+  no_log: true
+
+- name: Set all the LDAP Auth Bind Params
+  awx.awx.settings:
+    settings:
+      AUTH_LDAP_SERVER_URI: "ldaps://dc1.{{ ansible_domain }}:636,ldaps://dc2.{{ ansible_domain }}:636"
+      AUTH_LDAP_BIND_DN: "CN=svc_aap,OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+      AUTH_LDAP_START_TLS: false
+      AUTH_LDAP_GROUP_SEARCH:
+        - "{{ ldap_group_search_pattern }}"
+        - "SCOPE_BASE"
+        - "(objectClass=group)"
+      AUTH_LDAP_GROUP_TYPE: "MemberDNGroupType"
+      AUTH_LDAP_GROUP_TYPE_PARAMS:
+        name_attr: "cn"
+        member_attr: "member"
+      AUTH_LDAP_REQUIRE_GROUP: "{{ ldap_required_group_pattern }}"
+      AUTH_LDAP_USER_FLAGS_BY_GROUP:
+        is_superuser: "{{ ldap_super_user_group_pattern }}"
+      AUTH_LDAP_USER_SEARCH:
+        - "{{ ldap_user_search_pattern }}"
+        - "SCOPE_ONELEVEL"
+        - "(sAMAccountName=%(user)s)"
+      AUTH_LDAP_USER_ATTR_MAP:
+        email: "mail"
+        first_name: "givenName"
+        last_name: "sn"
+    controller_host: "{{ controller_api_url }}"
+    controller_oauthtoken: "{{ aap_controller_admin_api_token }}"
+    validate_certs: true

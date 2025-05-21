@@ -1,0 +1,80 @@
+# https://www.authlite.com/docs/2_3/id_1000016649/
+
+- name: Configure SSSD for Authlite
+  community.general.ini_file:
+    path: /etc/sssd/sssd.conf
+    section: "domain/{{ ansible_domain }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+  become: true
+  loop:
+    - { option: "cache_credentials", value: "False" }
+    - { option: "krb5_use_kdcinfo", value: "True" }
+    - { option: "krb5_kdcinfo_lookahead", value: "0" }
+  notify: lin restart sssd
+
+- name: Debian - Install required packages
+  ansible.builtin.package:
+    name:
+      - cmake
+      - g++
+      - libpam0g-dev
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'Debian'
+
+- name: RHEL - Install required packages
+  ansible.builtin.package:
+    name:
+      - cmake
+      - make
+      - gcc-c++
+      - pam-devel
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Download Authlite PAM module
+  ansible.builtin.get_url:
+    url: "{{ lin_authlite_pam_download_url }}"
+    dest: "/tmp/{{ lin_authlite_pam_name }}"
+    force: true
+    mode: '0755'
+
+- name: Check Authlite PAM file hash
+  ansible.builtin.stat:
+    path: "/tmp/{{ lin_authlite_pam_name }}"
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: lin_authlite_downloaded_pam_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - lin_authlite_downloaded_pam_file.stat.checksum == lin_authlite_pam_file_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ lin_authlite_downloaded_pam_file.stat.checksum }}, the expected hash is {{ lin_authlite_pam_file_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Unzip PAM module
+  ansible.builtin.unarchive:
+    src: "/tmp/{{ lin_authlite_pam_name }}"
+    dest: /tmp
+    remote_src: true
+
+- name: Build module cmake
+  ansible.builtin.shell:
+    cmd: cmake . ; make
+    chdir: /tmp/pam_authlite
+  register: cmake_result
+  changed_when: cmake_result.rc == 0
+
+- name: Debug cmake_result
+  ansible.builtin.debug:
+    var: cmake_result
+
+- name: Make install
+  community.general.make:
+    chdir: /tmp/pam_authlite
+    target: install
+  become: true

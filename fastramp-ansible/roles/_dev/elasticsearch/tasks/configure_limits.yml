@@ -1,0 +1,27 @@
+- name: Create elasticsearch.d
+  ansible.builtin.file:
+    path: /etc/systemd/system/elasticsearch.service.d
+    state: directory
+  become: true
+
+- name: Update the systemd file for Elasticsearch
+  community.general.ini_file:
+    path: "/etc/systemd/system/elasticsearch.service.d/override.conf"
+    section: Service
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: 0644
+  become: true
+  loop:
+    - { option: "LimitMEMLOCK", value: "infinity" }
+    #- { option: "TimeoutStartSec", value: "300" }
+  notify:
+    - reload systemctl daemon
+
+- name: Modify nofile limits
+  community.general.pam_limits:
+    domain: elasticsearch
+    limit_type: '-'
+    limit_item: nofile
+    value: 65536
+  become: true

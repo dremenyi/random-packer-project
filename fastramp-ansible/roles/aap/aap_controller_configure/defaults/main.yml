@@ -1,0 +1,12 @@
+---
+# Global
+controller_api_url: "https://aapcontroller.{{ ansible_domain }}"
+
+# LDAP
+ldap_user_search_pattern: "OU=Administrators,OU=Management,OU=All Users,{{ dom_disname }}"
+ldap_group_search_pattern: "CN=AAPAdmins,OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+ldap_required_group_pattern: "CN=AAPAdmins,OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+ldap_super_user_group_pattern: "CN=AAPAdmins,OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+
+# Logging
+splunk_api_url: "https://splunkhf1.{{ ansible_domain }}:8089"

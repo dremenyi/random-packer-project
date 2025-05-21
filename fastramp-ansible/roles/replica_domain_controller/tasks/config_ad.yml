@@ -1,0 +1,25 @@
+- name: Check for IP address
+  ansible.windows.win_powershell:
+    script: |
+      $Ansible.Result = Get-DnsClientServerAddress | Where-Object -FilterScript { $_.ServerAddresses -contains "{{ first_dc_ip }}" }
+    error_action: stop
+  changed_when: false
+  register: ip_check
+
+- name: Configure DNS
+  ansible.windows.win_dns_client:
+    adapter_names: "*"
+    ipv4_addresses:
+      - "{{ first_dc_ip }}"
+      - "{{ second_dc_ip }}"
+      - "127.0.0.1"
+  when: ip_check.result == None
+
+- name: Configure NLA Dependencies
+  ansible.windows.win_service:
+    name: nlasvc
+    start_mode: delayed
+    dependencies: [DNS, NTDS]
+    dependency_action: add
+  register: nla_svc
+  notify: Restart NLA

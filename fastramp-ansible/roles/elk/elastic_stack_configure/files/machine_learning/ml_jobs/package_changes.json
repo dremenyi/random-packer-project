@@ -1,0 +1,52 @@
+{
+    "job_id" : "package_changes",
+    "job_type" : "anomaly_detector",
+    "job_version" : "7.6.1",
+    "groups" : [
+      "coalfire",
+      "auditbeat",
+      "cm_11",
+      "cm_2_063"
+    ],
+    "description" : "Anomalies in package install update or removal ",
+    "analysis_config" : {
+      "bucket_span" : "15m",
+      "detectors" : [
+        {
+          "detector_description" : "non_zero_count",
+          "function" : "non_zero_count",
+          "detector_index" : 0
+        }
+      ],
+      "influencers" : [
+        "host.name",
+        "event.action"
+      ]
+    },
+    "analysis_limits" : {
+      "model_memory_limit" : "10mb",
+      "categorization_examples_limit" : 4
+    },
+    "data_description" : {
+      "time_field" : "@timestamp",
+      "time_format" : "epoch_ms"
+    },
+    "model_snapshot_retention_days" : 1,
+    "custom_settings" : {
+      "custom_urls" : [
+        {
+          "url_name" : "CM.2.063",
+          "url_value" : "kibana#/dashboard/05c3bb70-7dce-11ea-b6d8-0f28b61d5e3e?_g=(time:(from:'$earliest$',mode:absolute,to:'$latest$'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,controlledBy:'1585160152396',disabled:!f,indexRefName:kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index,key:event.dataset,negate:!f,params:(query:package),type:phrase),query:(match_phrase:(event.dataset:package)))),query:(language:kuery,query:'system.audit.package.installtime : * '))",
+          "time_range" : "auto"
+        },
+        {
+          "url_name" : "CM-11",
+          "url_value" : "kibana#/dashboard/e353dcb0-6e04-11ea-97e3-13c5536e7ab1?_g=(time:(from:'$earliest$',mode:absolute,to:'$latest$'))&_a=(filters:!(('$state':(store:appState),meta:(alias:!n,controlledBy:'1585160152396',disabled:!f,indexRefName:kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index,key:event.dataset,negate:!f,params:(query:package),type:phrase),query:(match_phrase:(event.dataset:package)))),query:(language:kuery,query:'system.audit.package.installtime : * '))",
+          "time_range" : "auto"
+        }
+      ],
+      "created_by" : "multi-metric-wizard"
+    },
+    "results_index_name" : "shared",
+    "allow_lazy_open" : false
+  }

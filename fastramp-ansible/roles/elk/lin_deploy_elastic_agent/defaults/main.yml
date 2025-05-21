@@ -1,0 +1,4 @@
+---
+# Fleet
+fleet_server_url: "https://esingest.{{ ansible_domain }}:8220"
+is_packer: false

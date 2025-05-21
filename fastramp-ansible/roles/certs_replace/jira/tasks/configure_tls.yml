@@ -1,0 +1,52 @@
+- name: Create tempfile for PKCS
+  ansible.builtin.tempfile:
+    state: file
+    suffix: .p12
+  register: jira_p12_tempfile
+  notify: Remove Jira p12 Tempfile
+
+- name: Generate PKCS#12 file
+  community.crypto.openssl_pkcs12:
+    action: export
+    path: "{{ jira_p12_tempfile.path }}"
+    friendly_name: jira
+    privatekey_path: /tmp/jira_cert_key.pem
+    certificate_path: /tmp/jira_cert.pem
+    passphrase: changeit
+    force: true
+    state: present
+    mode: '0400'
+  become: true
+
+- name: Ensure tmp JKS does not exist
+  ansible.builtin.file:
+    path: /tmp/jira.jks
+    state: absent
+  become: true
+
+- name: Generate JKS
+  ansible.builtin.command: >
+    /opt/atlassian/jira/jre/bin/keytool -importkeystore -destkeystore /tmp/jira.jks -srckeystore {{ jira_p12_tempfile.path }}
+     -srcstoretype pkcs12 -alias jira -srcstorepass changeit -deststorepass changeit
+  become: true
+  register: generate_jks
+  changed_when: generate_jks.stderr_lines | select("match", ".*Importing keystore.*") # Appears to normally output to stderr
+
+- name: Add RootCA to JKS
+  ansible.builtin.command: >
+    /opt/atlassian/jira/jre/bin/keytool -import -alias rootCA -keystore /tmp/jira.jks -file /etc/pki/ca-trust/source/anchors/cacert.pem
+     -srcstorepass changeit -deststorepass changeit -noprompt
+  become: true
+  register: add_rootca_jks
+  changed_when: add_rootca_jks.stderr_lines | select("match", ".*Certificate was added to keystore.*")
+
+- name: Copy JKS to Jira directory
+  ansible.builtin.copy:
+    src: /tmp/jira.jks
+    dest: /opt/atlassian/jira/jira.jks
+    mode: '0644'
+    owner: jira
+    group: jira
+    force: true
+    remote_src: true
+  become: true

@@ -1,0 +1,14 @@
+---
+# Only notes expected variables to be provided when calling the role in commented out format (no defaults).
+# app_name: string (name of the application, to be used in the Common Name e.g. tower = "CN=tower.contoso.com" )
+# ssl_password: string
+
+# Overridable defaults
+instance_count: 1
+private_key_format: pkcs8
+
+# Add "clientAuth" if you need TLS client authentication
+extended_key_usage:
+  - serverAuth
+
+create_unencrypted: false

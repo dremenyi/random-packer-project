@@ -1,0 +1,19 @@
+- name: Remove Jira p12 Tempfile
+  ansible.builtin.file:
+    path: "{{ jira_p12_tempfile.path }}"
+    state: absent
+
+- name: Reload systemctl
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Update CA Trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true
+
+- name: Pause
+  ansible.builtin.pause:
+    seconds: 120

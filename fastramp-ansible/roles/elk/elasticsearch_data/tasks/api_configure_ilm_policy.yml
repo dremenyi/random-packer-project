@@ -1,0 +1,97 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    - name: Get ILM Policy
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_ilm/policy"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: GET
+        force_basic_auth: true
+        status_code: 200
+      register: get_ilm
+      changed_when: false
+
+    - name: Set ILM Policy on Logs
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_ilm/policy/logs"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: PUT
+        force_basic_auth: true
+        status_code: 200, 409
+        body_format: json
+        body:
+          policy:
+            phases:
+              hot:
+                min_age: 0ms
+                actions:
+                  rollover:
+                    max_age: 90d
+                    max_primary_shard_size: 50gb
+              delete:
+                min_age: 90d
+                actions:
+                  delete: {}
+            _meta:
+              managed: true
+              description: default policy for the logs index template installed by x-pack
+      register: set_ilm_logs
+      changed_when: set_ilm_logs.status == 200
+      when: 'not "coalfire_ilm" in get_ilm.json'
+
+    - name: Set ILM Policy on Metrics
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_ilm/policy/metrics"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: PUT
+        force_basic_auth: true
+        status_code: 200, 409
+        body_format: json
+        body:
+          policy:
+            phases:
+              hot:
+                min_age: 0ms
+                actions:
+                  rollover:
+                    max_age: 90d
+                    max_primary_shard_size: 50gb
+              delete:
+                min_age: 90d
+                actions:
+                  delete: {}
+            _meta:
+              managed: true
+              description: default policy for the metrics index template installed by x-pack
+      register: set_ilm_metrics
+      changed_when: set_ilm_metrics.status == 200
+      when: 'not "coalfire_ilm" in get_ilm.json'
+
+    - name: Create default coalfire_ilm policy
+      ansible.builtin.uri:
+        url: "{{ elastic_api_url }}/_ilm/policy/coalfire_ilm"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: PUT
+        force_basic_auth: true
+        status_code: 200, 409
+        body_format: json
+        body:
+          policy:
+            phases:
+              hot:
+                min_age: 0ms
+                actions:
+                  rollover:
+                    max_age: 90d
+                    max_primary_shard_size: 50gb
+              delete:
+                min_age: 90d
+                actions:
+                  delete: {}
+      register: add_coalfire_ilm
+      changed_when: add_coalfire_ilm.status == 200
+      when: 'not "coalfire_ilm" in get_ilm.json'

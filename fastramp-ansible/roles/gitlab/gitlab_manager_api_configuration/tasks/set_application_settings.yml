@@ -1,0 +1,31 @@
+- name: Get current application settings
+  ansible.builtin.uri:
+    url: "{{ gitlab_api_url }}api/v4/application/settings"
+    method: GET
+    body_format: json
+    status_code: 200
+    headers:
+      Authorization: "Bearer {{ initial_oauth_token.json.access_token }}"
+  register: get_application_settings
+
+- name: Set Application Settings
+  ansible.builtin.uri:
+    url: "{{ gitlab_api_url }}api/v4/application/settings"
+    method: PUT
+    body_format: json
+    status_code: 200
+    headers:
+      Authorization: "Bearer {{ initial_oauth_token.json.access_token }}"
+    body:
+      import_sources:
+        - github
+      signup_enabled: false
+  register: set_application_settings
+  changed_when: set_application_settings.status == 200
+  when: >
+    not 'github' in get_application_settings.json['import_sources'] or
+    get_application_settings.json['signup_enabled'] == 'true'
+
+- name: Pause for Application Settings to Apply
+  ansible.builtin.pause:
+    seconds: 60

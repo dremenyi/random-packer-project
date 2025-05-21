@@ -1,0 +1,26 @@
+---
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install elasticsearch
+  include_tasks: install.yml
+  when: '"elasticsearch.service" not in ansible_facts.services'
+
+- name: Copy TLS Certs
+  include_tasks: copy_certs.yml
+
+- name: Check port 9200
+  ansible.builtin.wait_for:
+    port: 9200
+    timeout: 5
+  register: port_check
+  ignore_errors: true
+
+- name: Configure Elasticsearch
+  include_tasks: configure.yml
+  when: port_check is failed
+
+- name: Create ILM Policy
+  include_tasks: api_configure_ilm_policy.yml
+  run_once: true

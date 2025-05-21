@@ -1,0 +1,23 @@
+- name: Install git
+  ansible.builtin.dnf:
+    name: git
+    state: present
+  become: true
+  delegate_to: "{{ item }}"
+  with_items:
+    - tower1
+    - tower2
+    - tower3
+
+- name: Copy gitconfig from template
+  ansible.builtin.template:
+    src: gitconfig.j2
+    dest: /etc/gitconfig
+    mode: "0644"
+    force: true
+  become: true
+  delegate_to: "{{ item }}"
+  with_items:
+    - tower1
+    - tower2
+    - tower3

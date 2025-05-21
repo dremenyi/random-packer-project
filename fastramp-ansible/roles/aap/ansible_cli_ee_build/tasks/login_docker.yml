@@ -1,0 +1,6 @@
+- name: Log into private registry and force re-authorization
+  community.docker.docker_login:
+    registry_url: "{{ ecr_repository_url }}"
+    username: AWS
+    password: "{{ get_ecr_password.stdout }}"
+    reauthorize: true

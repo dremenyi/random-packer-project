@@ -1,0 +1,6 @@
+---
+# Vars should be provided by playbook
+# app_name Application name in lowercase (jira, tower, etc), should match "<app_name>_secrets_path" in Terraform
+# role_name
+# extension_name
+db_name: "{{ app_name }}"

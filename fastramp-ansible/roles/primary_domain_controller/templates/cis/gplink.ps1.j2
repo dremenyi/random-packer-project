@@ -1,0 +1,27 @@
+Import-Module -Name GroupPolicy
+
+# Domain Policies
+New-GPLink -Name '{{ domain_password_xml.results[7].matches[0].values() | first }}' -Target '{{ dom_disname }}' -LinkEnabled Yes -Verbose
+
+# Domain Controller Policies
+{% for override in override_xml %}
+New-GPLink -Name '{{ override_xml.results[7].matches[0].values() | first }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+New-GPLink -Name '{{ dc_xml.results[7].matches[0].values() | first }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+New-GPLink -Name '{{ server_ntlm_xml.results[7].matches[0].values() | first }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% for base in base_gpo_xml_list %}
+New-GPLink -Name '{{ base.GPODisplayName }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+
+# Server Policies
+{% for override in override_xml %}
+New-GPLink -Name '{{ override_xml.results[7].matches[0].values() | first }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+New-GPLink -Name '{{ server_xml.results[7].matches[0].values() | first }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+New-GPLink -Name '{{ server_ntlm_xml.results[7].matches[0].values() | first }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% for base in base_gpo_xml_list %}
+New-GPLink -Name '{{ base.GPODisplayName }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+
+# User Policies
+New-GPLink -Name '{{ user_xml.results[7].matches[0].values() | first }}' -Target 'OU=All Users,{{ dom_disname }}' -LinkEnabled Yes -Verbose

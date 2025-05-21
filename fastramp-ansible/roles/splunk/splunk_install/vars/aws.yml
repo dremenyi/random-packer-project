@@ -1,0 +1,32 @@
+---
+# Common
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path', endpoint=ssm_endpoint) }}"
+splunk_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/splunk_secrets_path', endpoint=ssm_endpoint) }}"
+
+pass_4_symm_key: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'pass_4_symm_key', endpoint=ssm_endpoint) }}"
+ssl_password: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'ssl_password', endpoint=ssm_endpoint) }}"
+user_password: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'user_password', endpoint=ssm_endpoint) }}"
+
+# LDAP
+svc_splunk_password: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'svc_splunk', endpoint=ssm_endpoint) }}"
+project_name: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'project_name', endpoint=ssm_endpoint) }}"
+dom_disname: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'dom_disname', endpoint=ssm_endpoint) }}"
+
+# License
+splunk_license: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'splunk_license', endpoint=ssm_endpoint, on_missing='skip' ) }}"
+
+# TLS
+cert_name: "{{ inventory_hostname | regex_replace('\\d$', '') }}"
+splunk_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + cert_name + '_cert', endpoint=ssm_endpoint) }}"
+splunk_cert_key: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + cert_name + '_cert_key', endpoint=ssm_endpoint) }}"
+splunk_cert_key_unenc: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + cert_name + '_cert_key_unenc', endpoint=ssm_endpoint) }}"
+rootca_cert: "{{ lookup('amazon.aws.aws_ssm', ca_secrets_path + 'root_ca_pub.pem', endpoint=ssm_endpoint) }}"
+
+# Indexes
+splunk_smartstore_s3: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 'splunk_smartstore_s3', endpoint=ssm_endpoint) }}"
+s3_kms_key_id: "{{ lookup('amazon.aws.aws_ssm', splunk_secrets_path + 's3_kms_key_id', endpoint=ssm_endpoint) }}"

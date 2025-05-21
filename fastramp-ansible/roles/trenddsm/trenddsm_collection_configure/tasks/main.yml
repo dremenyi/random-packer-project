@@ -1,0 +1,2 @@
+- name: Configure System Settings
+  ansible.builtin.include_tasks: system_settings.yml

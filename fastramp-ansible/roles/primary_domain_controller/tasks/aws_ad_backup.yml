@@ -1,0 +1,26 @@
+- name: Create Backup Directory
+  ansible.windows.win_file:
+    path: C:\ProgramData\ADBackups
+    state: directory
+
+- name: Copy backup script from template
+  ansible.windows.win_template:
+    src: aws-domain-controller-backup.ps1.j2
+    dest: C:\ProgramData\ADBackups\domain-controller-backup.ps1
+
+- name: Create System State backup task
+  community.windows.win_scheduled_task:
+    name: System State Backup
+    description: System State Backup
+    actions:
+      - path: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe
+        arguments: -ExecutionPolicy Bypass -NonInteractive "C:\ProgramData\ADBackups\domain-controller-backup.ps1"
+    triggers:
+      - type: daily
+        start_boundary: "2017-10-09T02:00:00"
+        random_delay: PT30M
+        repetition:
+          interval: P1D
+    username: SYSTEM
+    run_level: highest
+    state: present

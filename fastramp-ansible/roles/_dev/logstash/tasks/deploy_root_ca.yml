@@ -1,0 +1,31 @@
+- name: Create certs directory
+  ansible.builtin.file:
+    path: /etc/logstash/certs/
+    state: directory
+    owner: "logstash"
+    group: "logstash"
+  become: true
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "/etc/logstash/certs/cacert.pem"
+    owner: "logstash"
+    group: "logstash"
+    mode: 0644
+  become: true
+
+- name: Copy Root CA to certificate store
+  ansible.builtin.copy:
+    src: "/etc/logstash/certs/cacert.pem"
+    dest: /etc/pki/ca-trust/source/anchors/cacert.pem
+    remote_src: true
+    mode: 0644
+  register: copy_ca_root
+  become: true
+
+- name: Update CA Trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true

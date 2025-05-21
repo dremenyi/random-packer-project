@@ -1,0 +1,46 @@
+{
+    "job_id" : "packetbeat_rare_urls",
+    "job_type" : "anomaly_detector",
+    "job_version" : "7.6.1",
+    "groups" : [
+      "siem",
+      "packetbeat",
+      "web"
+    ],
+    "description" : "SIEM Packetbeat: Looks for unusual web browsing URL activity that could indicate execution, persistence, command-and-control or data exfiltration activity (beta)",
+    "analysis_config" : {
+      "bucket_span" : "15m",
+      "detectors" : [
+        {
+          "detector_description" : "rare by \"url.full\"",
+          "function" : "rare",
+          "by_field_name" : "url.full",
+          "detector_index" : 0
+        }
+      ],
+      "influencers" : [
+        "host.name",
+        "destination.ip"
+      ]
+    },
+    "analysis_limits" : {
+      "model_memory_limit" : "256mb",
+      "categorization_examples_limit" : 4
+    },
+    "data_description" : {
+      "time_field" : "@timestamp",
+      "time_format" : "epoch_ms"
+    },
+    "model_snapshot_retention_days" : 1,
+    "custom_settings" : {
+      "created_by" : "ml-module-siem-packetbeat",
+      "custom_urls" : [
+        {
+          "url_name" : "Host Details",
+          "url_value" : "siem#/ml-hosts/$host.name$?_g=()&timerange=(global:(linkTo:!(timeline),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')),timeline:(linkTo:!(global),timerange:(from:'$earliest$',kind:absolute,to:'$latest$')))"
+        }
+      ]
+    },
+    "results_index_name" : "shared",
+    "allow_lazy_open" : true
+  }

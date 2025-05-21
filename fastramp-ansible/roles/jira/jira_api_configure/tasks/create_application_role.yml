@@ -1,0 +1,26 @@
+- name: PUT Application Role Jira Service Desk
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/applicationrole/jira-servicedesk"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: PUT
+    body_format: json
+    body:
+      defaultGroups:
+        - jira-servicedesk-users
+        - JiraUsers
+      groups:
+        - jira-servicedesk-users
+        - jira-administrators
+        - JiraUsers
+        - JiraAdmins
+      key: jira-servicedesk
+      name: Jira Service Management
+      selectedByDefault: true
+    force_basic_auth: true
+    status_code: 200
+  register: put_application_role_servicedesk
+
+- name: Debug put_application_role_servicedesk
+  ansible.builtin.debug:
+    var: put_application_role_servicedesk.json

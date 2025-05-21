@@ -1,0 +1,22 @@
+- name: Set default elasticsearchdata list to empty array
+  ansible.builtin.set_fact:
+    elasticsearchdata_list: []
+
+- name: Format elasticsearchdata item and add to list
+  ansible.builtin.set_fact:
+    elasticsearchdata_list: "{{ elasticsearchdata_list + [ '\"https://' ~ item ~ ':9200\"' ] }}"
+  loop: "{{ query('inventory_hostnames', 'data') }}"
+
+- name: Join elasticsearchdata list to string
+  ansible.builtin.set_fact:
+    elasticsearchdata_string: "{{ elasticsearchdata_list | join(',') }}"
+
+- name: Copy logstash.yml from template
+  ansible.builtin.template:
+    src: logstash.yml.j2
+    dest: /etc/logstash/logstash.yml
+    force: true
+    mode: 0644
+    owner: logstash
+    group: logstash
+  become: true

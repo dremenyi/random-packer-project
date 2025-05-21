@@ -1,0 +1,34 @@
+{
+    "datafeed_id" : "datafeed-file_integrity_coalfire",
+    "job_id" : "file_integrity_coalfire",
+    "query_delay" : "90605ms",
+    "indices" : [
+      "auditbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "must" : [
+          {
+            "match_all" : { }
+          }
+        ],
+        "filter" : [
+          {
+            "match_phrase" : {
+              "event.module" : {
+                "query" : "file_integrity"
+              }
+            }
+          }
+        ],
+        "must_not" : [ ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    }
+  }

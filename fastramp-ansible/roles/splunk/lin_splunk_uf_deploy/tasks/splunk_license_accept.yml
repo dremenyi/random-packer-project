@@ -1,0 +1,9 @@
+- name: Accept Splunk license
+  ansible.builtin.command: /opt/splunkforwarder/bin/splunk status --accept-license --answer-yes --no-prompt
+  register: splunk_license_result
+  changed_when: splunk_license_result.rc != 0
+  become: true
+
+- name: Debug splunk_license_result
+  ansible.builtin.debug:
+    var: splunk_license_result

@@ -1,0 +1,45 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: AWS - Generate UUID tokens
+  ansible.builtin.set_fact:
+    logs:
+      - name: cwlogs-kinesis
+        sourcetype: aws:firehose:json
+        token: "{{ lookup('password', '/dev/null chars=ascii_letters,digits') | to_uuid }}"
+  when: ansible_system_vendor == 'Amazon EC2'
+  run_once: true
+
+- name: Debug logs
+  ansible.builtin.debug:
+    var: logs
+
+### Deployment Server ###
+- name: Deployment Server tasks
+  when: "'deploymentserver' in group_names"
+  block:
+    - name: Copy Splunk Client TLS Certs
+      ansible.builtin.include_tasks: copy_splunkclient_tls_certs.yml
+
+    - name: Configure Server Class
+      ansible.builtin.include_tasks: configure_serverclass.yml
+
+- name: Install Apps
+  ansible.builtin.include_tasks: install_apps.yml
+  when: "'indexer' not in group_names"
+
+- name: Create HEC Token in AWS SSM Parameter Store
+  community.aws.ssm_parameter:
+    name: "{{ splunk_secrets_path }}{{ item.name }}_hec_token"
+    state: present
+    string_type: "SecureString"
+    value: "{{ item.token }}"
+    region: "{{ aws_region }}"
+    key_id: "{{ ssm_parameter_store_key_id }}"
+    endpoint_url: "{{ ssm_endpoint }}"
+  when: ansible_system_vendor == 'Amazon EC2'
+  loop: "{{ logs }}"
+  delegate_to: localhost
+  run_once: true

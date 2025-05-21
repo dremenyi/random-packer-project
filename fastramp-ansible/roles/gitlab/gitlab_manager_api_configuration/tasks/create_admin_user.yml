@@ -1,0 +1,31 @@
+- name: Get Users
+  ansible.builtin.uri:
+    url: "{{ gitlab_api_url }}api/v4/users?exclude_internal=true"
+    method: GET
+    body_format: json
+    status_code: 200
+    headers:
+      Authorization: "Bearer {{ initial_oauth_token.json.access_token }}"
+  register: get_users
+
+- name: Check for existing localadmin
+  ansible.builtin.set_fact:
+    search_user: "{{ get_users.json | community.general.json_query(field_query) }}"
+  vars:
+    field_query: "[?username=='localadmin']"
+
+- name: Create local Gitlab Admin user for Automation Use
+  community.general.gitlab_user:
+    api_url: "{{ gitlab_api_url }}"
+    validate_certs: false # Temporarily setting to false as this Ansible module doesn't seem to trust custom CA certs
+    api_oauth_token: "{{ initial_oauth_token.json.access_token }}"
+    name: Admin
+    username: localadmin
+    email: "localadmin@{{ ansible_domain }}"
+    group: iac
+    password: "{{ admin_password }}"
+    state: present
+    access_level: owner
+    isadmin: true
+    confirm: false
+  when: search_user | length == 0

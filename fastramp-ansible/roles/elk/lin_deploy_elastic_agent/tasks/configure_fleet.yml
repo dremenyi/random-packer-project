@@ -1,0 +1,26 @@
+- name: Set Enrollment token name
+  ansible.builtin.include_tasks: set_enrollment_token_name.yml
+
+- name: Set Enrollment token
+  ansible.builtin.set_fact:
+    enrollment_token: "{{ enrollment_token }}"
+
+- name: Enroll agent to Fleet Server
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/elastic-agent
+      - enroll
+      - "--url={{ fleet_server_url }}"
+      - "--enrollment-token={{ enrollment_token }}"
+      - "--certificate-authorities=/etc/elastic-agent/cacert.pem"
+  become: true
+  register: enroll_fleet
+  changed_when: enroll_fleet.stdout_lines | select("match", ".*Successfully enrolled the Elastic Agent.*")
+  no_log: true
+
+- name: Start Elastic Agent
+  ansible.builtin.service:
+    name: elastic-agent
+    state: started
+    enabled: true
+  become: true

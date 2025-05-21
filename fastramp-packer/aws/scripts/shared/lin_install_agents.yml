@@ -1,0 +1,73 @@
+---
+- hosts: 127.0.0.1
+  become_method: sudo
+  connection: local
+  gather_facts: true
+  vars:
+    is_packer: true
+  handlers:
+    - name: rhel update ca trust
+      ansible.builtin.command: update-ca-trust
+      register: update_ca_trust
+      changed_when: update_ca_trust.rc == 0
+      become: true
+
+    - name: ubuntu update ca trust
+      ansible.builtin.command: update-ca-certificates
+      register: update_ca_trust
+      changed_when: update_ca_trust.rc == 0
+      become: true
+  tasks:
+    - name: Load AWS vars
+      include_vars: vars/aws.yml
+      when: ansible_system_vendor == 'Amazon EC2'
+
+    - name: Set platform/version specific variables
+      include_vars: "{{ rolename_vars_file }}"
+      loop:
+        - "{{ ansible_facts['os_family'] }}.yml"
+        - "{{ ansible_facts['distribution'] }}.yml"
+        - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+        - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+      vars:
+        rolename_vars_file: "vars/{{ item }}"
+      when: rolename_vars_file is file
+
+    - name: Copy Root CA file
+      ansible.builtin.copy:
+        content: "{{ rootca_cert }}"
+        dest: "{{ root_ca_store }}"
+        mode: 0644
+      become: true
+      notify: "{{ update_ca_handler }}"
+
+- hosts: 127.0.0.1
+  become_method: sudo
+  connection: local
+  gather_facts: true
+  vars:
+    is_packer: true
+  roles:
+    - linux_trend_agent_deploy
+
+- hosts: 127.0.0.1
+  become_method: sudo
+  connection: local
+  gather_facts: true
+  vars:
+    is_packer: true
+    elastic_version: 8.5.3
+  tasks:
+    - name: Load AWS vars
+      include_vars: vars/aws.yml
+      when: ansible_system_vendor == 'Amazon EC2'
+
+    - name: Include Splunk UF role
+      ansible.builtin.include_role:
+        name: lin_splunk_uf_deploy
+      when: deployed_siem == 'splunk'
+
+    - name: Include Elastic Agent role
+      ansible.builtin.include_role:
+        name: lin_deploy_elastic_agent
+      when: deployed_siem == 'elastic'

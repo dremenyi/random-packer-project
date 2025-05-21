@@ -1,0 +1,12 @@
+---
+- hosts: localhost
+  connection: local
+  tasks:
+    - name: Load AWS vars
+      ansible.builtin.include_vars: ../../vars/aws/common.yml
+      when: ansible_system_vendor == 'Amazon EC2'
+
+- hosts: localhost
+  connection: local
+  roles:
+    - jira/jira_api_configure

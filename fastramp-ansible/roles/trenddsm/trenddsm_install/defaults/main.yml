@@ -1,0 +1,6 @@
+---
+# Install DSM
+# https://help.deepsecurity.trendmicro.com/software-long-term-support.html#
+dsm_download_url: "https://files.trendmicro.com/products/deepsecurity/en/20.0/Manager-Linux-20.0.844.x64.sh"
+dsm_installer_hash: cd8ba6064a38827b5c18f89fac99915aa06175316d56fd8f880fc7c1a3bd03d4
+dsm_installer_name: dsminstaller.sh

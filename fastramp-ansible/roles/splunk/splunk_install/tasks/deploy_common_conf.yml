@@ -1,0 +1,222 @@
+### web.conf ###
+
+- name: Configure web.conf
+  community.general.ini_file:
+    path: "/opt/splunk/etc/system/local/web.conf"
+    section: settings
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  notify:
+    - restart splunk
+    - wait for splunkd
+  loop:
+    - { option: "enableSplunkWebSSL", value: "true" }
+    - { option: "updateCheckerBaseURL", value: "0" }
+    - { option: "sslVersions", value: "tls1.2" }
+    - { option: "cipherSuite", value: "{{ cipher_suite }}" }
+    - { option: "ecdhCurves", value: "{{ ecdh_curves }}" }
+    - { option: "serverCert", value: "/opt/splunk/etc/auth/certs/server_unenc.pem" }
+    - { option: "privKeyPath", value: "/opt/splunk/etc/auth/certs/server_unenc.key" }
+  when: "'indexer' not in group_names"
+
+- name: Disable Splunk Web on indexers
+  community.general.ini_file:
+    path: "/opt/splunk/etc/system/local/web.conf"
+    section: settings
+    option: startwebserver
+    value: 0
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  when: "'indexer' in group_names"
+
+### outputs.conf ###
+
+- name: Deploy outputs.conf
+  when: "'indexer' not in group_names"
+  block:
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "/opt/splunk/etc/apps/linux_splunk_outputs/local"
+        state: directory
+        owner: splunk
+        group: splunk
+        mode: "0775"
+      become: true
+
+    - name: Set default indexers list to empty array
+      ansible.builtin.set_fact:
+        indexers_list: []
+
+    - name: Format indexer item and add to list
+      ansible.builtin.set_fact:
+        indexers_list: "{{ indexers_list + [ item ~ '.' ~ ansible_domain ~ ':9998' ] }}"
+      loop: "{{ query('inventory_hostnames', 'indexer') }}"
+
+    - name: Join indexers list to string
+      ansible.builtin.set_fact:
+        indexers_string: "{{ indexers_list | join(',') }}"
+
+    - name: Deploy outputs.conf from template
+      ansible.builtin.template:
+        src: splunk_server_outputs.conf.j2
+        dest: /opt/splunk/etc/apps/linux_splunk_outputs/local/outputs.conf
+        owner: splunk
+        group: splunk
+        mode: "0644"
+        force: true
+      become: true
+
+- name: Deploy outputs.conf for Splunk Clients
+  when: "'deploymentserver' in group_names"
+  block:
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: splunk
+        group: splunk
+        mode: "0775"
+      become: true
+      loop:
+        - "/opt/splunk/etc/deployment-apps/linux_ssl_outputs/local"
+        - "/opt/splunk/etc/deployment-apps/windows_ssl_outputs/local"
+
+    - name: Set default indexers list to empty array
+      ansible.builtin.set_fact:
+        indexers_list: []
+
+    - name: Format indexer item and add to list
+      ansible.builtin.set_fact:
+        indexers_list: "{{ indexers_list + [ item ~ '.' ~ ansible_domain ~ ':9998' ] }}"
+      loop: "{{ query('inventory_hostnames', 'indexer') }}"
+
+    - name: Join indexers list to string
+      ansible.builtin.set_fact:
+        indexers_string: "{{ indexers_list | join(',') }}"
+
+    - name: Deploy Linux Splunk Client outputs.conf from template
+      ansible.builtin.template:
+        src: linux_client_outputs.conf.j2
+        dest: /opt/splunk/etc/deployment-apps/linux_ssl_outputs/local/outputs.conf
+        owner: splunk
+        group: splunk
+        mode: "0644"
+        force: true
+      become: true
+
+    - name: Deploy Windows Splunk Client outputs.conf from template
+      ansible.builtin.template:
+        src: windows_client_outputs.conf.j2
+        dest: /opt/splunk/etc/deployment-apps/windows_ssl_outputs/local/outputs.conf
+        owner: splunk
+        group: splunk
+        mode: "0644"
+        force: true
+      become: true
+
+### server.conf ###
+
+- name: Configure sslConfig server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: sslConfig
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "allowSslCompression", value: "false" }
+    - { option: "useClientSSLCompression", value: "false" }
+    - { option: "useSplunkdClientSSLCompression", value: "false" }
+    - { option: "sslVersions", value: "tls1.2" }
+    - { option: "sslVersionsForClient", value: "tls1.2" }
+    - { option: "cipherSuite", value: "{{ cipher_suite }}" }
+    - { option: "ecdhCurves", value: "{{ ecdh_curves }}" }
+    - { option: "enableSplunkdSSL", value: "true" }
+    - { option: "sslVerifyServerCert", value: "true" }
+    - { option: "cliVerifyServerName", value: "true" }
+    - { option: "serverCert", value: "/opt/splunk/etc/auth/certs/server.pem" }
+    - { option: "sslRootCAPath", value: "/opt/splunk/etc/auth/certs/cacert.pem" }
+
+- name: AWS - Configure imds server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: imds
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "imds_version", value: "v2" }
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Molecule Disable sslVerifyServerCert
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: sslConfig
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  loop:
+    - { option: "sslVerifyServerCert", value: "false" }
+  when: is_container
+
+- name: Configure sslConfig > sslPassword server.conf file
+  community.general.ini_file:
+    path: "/opt/splunk/etc/system/local/server.conf"
+    section: sslConfig
+    option: sslPassword
+    value: "{{ ssl_password }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  no_log: true
+
+- name: Configure kvstore server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: kvstore
+    option: serverCert
+    value: /opt/splunk/etc/auth/certs/server.pem
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+
+- name: Configure kvstore > sslPassword server.conf file
+  community.general.ini_file:
+    path: /opt/splunk/etc/system/local/server.conf
+    section: kvstore
+    option: sslPassword
+    value: "{{ ssl_password }}"
+    mode: "0644"
+    owner: splunk
+    group: splunk
+  become: true
+  no_log: true
+
+### telemetry.conf ###
+
+- name: Deploy telemetry.conf from template
+  ansible.builtin.template:
+    src: telemetry.conf.j2
+    dest: /opt/splunk/etc/system/local/telemetry.conf
+    owner: splunk
+    group: splunk
+    mode: "0644"
+    force: true
+  become: true

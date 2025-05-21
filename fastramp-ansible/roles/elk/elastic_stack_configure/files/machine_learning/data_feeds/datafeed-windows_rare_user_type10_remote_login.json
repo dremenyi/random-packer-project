@@ -1,0 +1,37 @@
+{
+    "datafeed_id" : "datafeed-windows_rare_user_type10_remote_login",
+    "job_id" : "windows_rare_user_type10_remote_login",
+    "query_delay" : "71099ms",
+    "indices" : [
+      "winlogbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "filter" : [
+          {
+            "term" : {
+              "event.type" : "authentication_success"
+            }
+          },
+          {
+            "term" : {
+              "winlog.event_data.LogonType" : "10"
+            }
+          },
+          {
+            "term" : {
+              "agent.type" : "winlogbeat"
+            }
+          }
+        ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    },
+    "max_empty_searches" : 10
+  }

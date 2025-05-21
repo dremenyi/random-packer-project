@@ -1,0 +1,24 @@
+- name: Install GitLab runner dependencies.
+  ansible.builtin.package:
+    name:
+      - git
+    state: present
+  become: true
+
+- name: Download GitLab Runner repository installation script.
+  ansible.builtin.get_url:
+    url: "{{ gitlab_repository_installation_script_url }}"
+    dest: /tmp/gitlab_runner_install_repository.sh
+    validate_certs: true
+
+- name: Install GitLab Runner repository
+  ansible.builtin.command:
+    cmd: bash /tmp/gitlab_runner_install_repository.sh
+    creates: /etc/yum.repos.d/runner_gitlab-runner.repo
+  become: true
+
+- name: Install GitLab Runner
+  ansible.builtin.package:
+    name: gitlab-runner-fips # Non-FIPS = gitlab-runner; FIPS = gitlab-runner-fips
+    state: present
+  become: true

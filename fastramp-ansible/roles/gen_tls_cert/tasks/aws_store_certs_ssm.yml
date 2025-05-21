@@ -1,0 +1,30 @@
+- name: Create application cert in SSM Parameter Store
+  community.aws.ssm_parameter:
+    name: "{{ ca_secrets_path }}{{ app_name }}_cert"
+    state: present
+    string_type: "SecureString"
+    value: "{{ server_cer_sanitized['content'] | b64decode }}"
+    region: "{{ aws_region }}"
+    key_id: "{{ ssm_parameter_store_key_id }}"
+    endpoint_url: "{{ ssm_endpoint }}"
+
+- name: Create application cert key in SSM Parameter Store
+  community.aws.ssm_parameter:
+    name: "{{ ca_secrets_path }}{{ app_name }}_cert_key"
+    state: present
+    string_type: "SecureString"
+    value: "{{ application_pkey['content'] | b64decode }}"
+    region: "{{ aws_region }}"
+    key_id: "{{ ssm_parameter_store_key_id }}"
+    endpoint_url: "{{ ssm_endpoint }}"
+
+- name: Create application cert key unencrypted in SSM Parameter Store
+  community.aws.ssm_parameter:
+    name: "{{ ca_secrets_path }}{{ app_name }}_cert_key_unenc"
+    state: present
+    string_type: "SecureString"
+    value: "{{ application_pkey_unenc['content'] | b64decode }}"
+    region: "{{ aws_region }}"
+    key_id: "{{ ssm_parameter_store_key_id }}"
+    endpoint_url: "{{ ssm_endpoint }}"
+  when: create_unencrypted

@@ -1,0 +1,39 @@
+- name: Download Burpsuite installer
+  ansible.builtin.get_url:
+    url: "{{ burpsuite_download_url }}"
+    dest: "/tmp/{{ burpsuite_installer_name }}"
+    force: true
+    mode: '0700'
+
+- name: Check Burpsuite installer file hash
+  ansible.builtin.stat:
+    path: "/tmp/{{ burpsuite_installer_name }}"
+    get_checksum: true
+    checksum_algorithm: sha256
+  become: true
+  register: burpsuite_downloaded_installer_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - burpsuite_downloaded_installer_file.stat.checksum == burpsuite_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ burpsuite_downloaded_installer_file.stat.checksum }}, the expected hash is {{ burpsuite_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Install Burpsuite Pro
+  ansible.builtin.command:
+    cmd: "/tmp/{{ burpsuite_installer_name }} -q -dir /opt/BurpSuitePro"
+  become: true
+  register: install_burpsuite
+  changed_when: install_burpsuite.stdout_lines | select("match", ".*Finishing installation.*")
+
+# If manual installation is needed:
+# https://forum.portswigger.net/thread/error-installing-burpsuite-on-debian-gnu-linux-10-buster-c14817e3
+# The below commands must be run manually upon logging in via RDP
+# Run "xhost si:localuser:root" to allow xhost access
+# Run "xhost -si:localuser:root" to remove access
+
+- name: Remove Burpsuite installer
+  ansible.builtin.file:
+    path: "/tmp/{{ burpsuite_installer_name }}"
+    state: absent

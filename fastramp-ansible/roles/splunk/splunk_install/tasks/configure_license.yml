@@ -1,0 +1,102 @@
+---
+
+- name: Configure Trial Local License
+  when:
+    - splunk_license_group == 'Trial'
+  block:
+    - name: Configure License Group
+      community.general.ini_file:
+        path: /opt/splunk/etc/system/local/server.conf
+        section: license
+        option: active_group
+        value: Trial
+        owner: splunk
+        group: splunk
+        mode: "0644"
+      become: true
+      notify: restart splunk
+
+- name: Configure Enterprise Local License
+  when:
+    - "'deploymentserver' in group_names"
+    - splunk_license_group == 'Enterprise'
+  block:
+    - name: Create license/enterprise directory
+      ansible.builtin.file:
+        path: /opt/splunk/etc/licenses/enterprise
+        state: directory
+        mode: "0700"
+        owner: splunk
+        group: splunk
+      become: true
+    - name: Copy license file
+      ansible.builtin.copy:
+        content: "{{ splunk_license }}"
+        dest: /opt/splunk/etc/licenses/enterprise/splunk.license
+        owner: splunk
+        group: splunk
+        mode: "0600"
+      become: true
+    - name: Remove master_uri when using local license
+      community.general.ini_file:
+        path: /opt/splunk/etc/system/local/server.conf
+        section: license
+        option: manager_uri
+        value: "{{ splunk_uri_lm }}"
+        owner: splunk
+        group: splunk
+        state: absent
+        mode: "0644"
+      become: true
+    - name: Configure License Group
+      community.general.ini_file:
+        path: /opt/splunk/etc/system/local/server.conf
+        section: license
+        option: active_group
+        value: Enterprise
+        owner: splunk
+        group: splunk
+        mode: "0644"
+      become: true
+      notify: restart splunk
+    - name: Set pass4SymmKey on LM
+      community.general.ini_file:
+        path: /opt/splunk/etc/system/local/server.conf
+        section: general
+        option: pass4SymmKey
+        value: "{{ pass_4_symm_key }}"
+        owner: splunk
+        group: splunk
+        mode: "0644"
+      become: true
+      notify: restart splunk
+      no_log: true
+
+- name: Configure Enterprise License Peer
+  when:
+    - "'deploymentserver' not in group_names"
+    - splunk_license_group == 'Enterprise'
+  block:
+    - name: Set license master_uri
+      community.general.ini_file:
+        path: "/opt/splunk/etc/system/local/server.conf"
+        section: license
+        option: manager_uri
+        value: "{{ splunk_uri_lm }}"
+        owner: splunk
+        group: splunk
+        mode: "0644"
+      become: true
+
+    - name: Set pass4SymmKey to match LM
+      community.general.ini_file:
+        path: "/opt/splunk/etc/system/local/server.conf"
+        section: general
+        option: pass4SymmKey
+        value: "{{ pass_4_symm_key }}"
+        owner: splunk
+        group: splunk
+        mode: "0644"
+      become: true
+      notify: restart splunk
+      no_log: true

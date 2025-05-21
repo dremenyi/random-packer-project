@@ -1,0 +1,17 @@
+- name: Set Enrollment token name
+  ansible.builtin.set_fact:
+    group_name: "{{ item }}"
+  when: item in group_names
+  loop:
+    - jira
+    - towercontroller
+    - trenddsm
+
+- name: Set Enrollment token name linux generic
+  ansible.builtin.set_fact:
+    group_name: linux
+  when: item not in group_names
+  loop:
+    - jira
+    - towercontroller
+    - trenddsm

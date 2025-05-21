@@ -1,0 +1,41 @@
+- name: Make sure encryption keys don't exist in kibana.yml
+  ansible.builtin.lineinfile:
+    path: /etc/kibana/kibana.yml
+    state: absent
+    regexp: "{{ item }}"
+  become: true
+  loop:
+    - "^xpack.encryptedSavedObjects.encryptionKey"
+    - "^xpack.reporting.encryptionKey"
+    - "^xpack.security.encryptionKey"
+
+- name: Set default elasticsearchdata list to empty array
+  ansible.builtin.set_fact:
+    elasticsearchdata_list: []
+
+- name: Format elasticsearchdata item and add to list
+  ansible.builtin.set_fact:
+    elasticsearchdata_list: '{{ elasticsearchdata_list + [ ''"https://'' ~ item ~ ''.'' ~ ansible_domain ~ '':9200"'' ] }}'
+  loop: "{{ query('inventory_hostnames', 'data') }}"
+
+- name: Join elasticsearchdata list to string
+  ansible.builtin.set_fact:
+    elasticsearchdata_string: "{{ elasticsearchdata_list | join(',') }}"
+
+- name: Generate encryption keys
+  ansible.builtin.command:
+    cmd: /usr/share/kibana/bin/kibana-encryption-keys generate -q --force
+  become: true
+  register: kibana_encryption_keys
+  changed_when: kibana_encryption_keys.rc == 0
+  when: inventory_hostname == 'kibana1'
+
+- name: Copy kibana.yml from template
+  ansible.builtin.template:
+    src: kibana.yml.j2
+    dest: /etc/kibana/kibana.yml
+    force: true
+    mode: "0644"
+    owner: kibana
+    group: kibana
+  become: true

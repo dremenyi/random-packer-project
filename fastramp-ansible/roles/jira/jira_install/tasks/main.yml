@@ -1,0 +1,108 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+- name: Install EFS
+  ansible.builtin.include_tasks: install_efs.yml
+  when:
+    - ansible_mounts | selectattr('mount', 'equalto', '/sharedhome') | list | length == 0 # Skip if /sharedhome mount already exists
+    - clustered == 'true'
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install Jira
+  ansible.builtin.include_tasks: install_jira.yml
+  when: '"jira.service" not in ansible_facts.services'
+
+- name: Copy TLS Certs
+  ansible.builtin.include_tasks: copy_tls_certs.yml
+
+# Note: We assume that altering TLS isn't necessary if the JKS file already exists.
+- name: Check if JKS exists
+  ansible.builtin.stat:
+    path: /opt/atlassian/jira/jira.jks
+  become: true
+  register: jks_check
+
+- name: Configure TLS
+  ansible.builtin.include_tasks: configure_tls.yml
+  when: not jks_check.stat.exists
+
+- name: Change Jira owner
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+    owner: jira
+    group: jira
+  become: true
+  loop:
+    - /opt/atlassian
+    - /var/atlassian
+
+- name: Start Jira
+  ansible.builtin.service:
+    name: jira.service
+    state: started
+    enabled: true
+  become: true
+  notify: Pause # Adding pause as it takes a minute or two before Jira fully loads
+
+# Flush handlers to delete tempfiles and start pause now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Install Selenium Prerequisites
+  ansible.builtin.include_tasks: install_selenium_prereqs.yml
+  run_once: true
+
+- name: Block Setup without License
+  ansible.builtin.fail:
+    msg: |
+      Setup step cannot continue without a license.  Trial licenses require a Server ID, login to Jira Web UI and configure database manually to get a Server ID value.
+      Progress the setup manually and reapply the Terraform/Ansible code.  The "Setup Jira" Selenium task can also fail without a clear message (generic timeout) if the license is expired.
+  when: jira_license | length == 0
+
+- name: Check if dbconfig exists
+  ansible.builtin.stat:
+    path: /sharedhome/backup/dbconfig.xml
+  become: true
+  register: backup_dbconfig
+
+# Note: This will take about 15-20 minutes
+- name: Setup Jira
+  ansible.builtin.include_tasks: setup_jira.yml
+  when:
+    - inventory_hostname == 'jira1' # Run only on first instance
+    - not backup_dbconfig.stat.exists
+
+- name: Run Cluster Tasks
+  ansible.builtin.include_tasks: cluster_tasks.yml
+  when: clustered == 'true'
+
+# Note: The admin user must have an avatar set otherwise the Web UI will block the page until one is set, preventing Selenium from executing correctly
+- name: Set Admin User Avatar
+  ansible.builtin.include_tasks: set_admin_avatar.yml
+  run_once: true
+
+# Note: This task will delegate to DC1 to create AD accounts and groups
+- name: Configure LDAP
+  ansible.builtin.include_tasks: configure_ldap.yml
+  run_once: true
+
+- name: Configure Application Access
+  ansible.builtin.include_tasks: application_access.yml
+  run_once: true

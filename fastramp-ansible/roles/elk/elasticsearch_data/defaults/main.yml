@@ -1,0 +1,6 @@
+---
+# Provide when calling the role
+# elastic_version: string (X.X.X)
+
+# Elastic
+elastic_api_url: "https://esdata1.{{ ansible_domain }}:9200"

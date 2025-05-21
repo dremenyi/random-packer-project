@@ -1,0 +1,11 @@
+---
+# Common
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+
+# Install/Configure AD
+radius_shared_secret: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'radius_shared_secret', endpoint=ssm_endpoint) }}"
+connector_ips: "{{ lookup('amazon.aws.aws_ssm', ad_secrets_path + 'connector_ips', endpoint=ssm_endpoint) | split(',') }}"

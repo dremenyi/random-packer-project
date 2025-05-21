@@ -1,0 +1,20 @@
+- name: Configure sslConfig in server.conf
+  community.general.ini_file:
+    path: "/opt/splunkforwarder/etc/system/local/server.conf"
+    section: sslConfig
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+    mode: "0644"
+    owner: "{{ splunk_user }}"
+    group: "{{ splunk_user }}"
+  become: true
+  with_items:
+    - { option: "allowSslCompression", value: "false" }
+    - { option: "useClientSSLCompression", value: "false" }
+    - { option: "useSplunkdClientSSLCompression", value: "false" }
+    - { option: "sslVersions", value: "tls1.2" }
+    - { option: "cipherSuite", value: "{{ cipher_suite }}" }
+    - { option: "ecdhCurves", value: "{{ ecdh_curves }}" }
+  notify:
+    - restart splunk

@@ -1,0 +1,13 @@
+[tcp-ssl://6514]
+disabled = 0
+connection_host = none
+index = trend_micro
+sourcetype = deepsecurity
+
+[SSL]
+requireClientCert = false
+serverCert = /opt/splunk/etc/auth/certs/server_unenc.pem
+sslVersions = tls1.1, tls1.2
+sslVersionsForClient = tls1.1, tls1.2
+cipherSuite = {{ cipher_suite }}
+ecdhCurves = {{ ecdh_curves }}

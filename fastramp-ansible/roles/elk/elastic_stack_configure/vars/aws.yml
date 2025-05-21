@@ -1,0 +1,22 @@
+---
+# Common
+aws_region: "{{ lookup('ansible.builtin.env', 'AWS_REGION') }}"
+is_gov: "{{ lookup('ansible.builtin.env', 'IS_GOV') | bool }}"
+ssm_fips_endpoint: "{% if is_gov %}ssm{% else %}ssm-fips{% endif %}"
+sm_endpoint: "{{ 'https://' + 'secretsmanager-fips' + '.' + aws_region + '.amazonaws.com' }}"
+ssm_endpoint: "{{ 'https://' + ssm_fips_endpoint + '.' + aws_region + '.amazonaws.com' }}"
+ad_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ad_secrets_path', endpoint=ssm_endpoint) }}"
+ca_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/ca_secrets_path', endpoint=ssm_endpoint) }}"
+elastic_secrets_path: "{{ lookup('amazon.aws.aws_ssm', '/production/elastic_secrets_path', endpoint=ssm_endpoint) }}"
+
+elastic_password: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'elastic_password', endpoint=ssm_endpoint) }}"
+
+secrets_manager_key_id: "{{ lookup('amazon.aws.aws_ssm', '/production/secrets_manager_key_id', endpoint=ssm_endpoint) }}"
+ssm_parameter_store_key_id: "{{ lookup('amazon.aws.aws_ssm', '/production/ssm_parameter_store_key_id', endpoint=ssm_endpoint) }}"
+elb_accesslog_event_sqs_url: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'elb_accesslog_event_sqs_url', endpoint=ssm_endpoint) }}"
+s3_accesslog_event_sqs_url: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 's3_accesslog_event_sqs_url', endpoint=ssm_endpoint) }}"
+cloudtrail_event_sqs_url: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'cloudtrail_event_sqs_url', endpoint=ssm_endpoint) }}"
+flowlog_event_sqs_url: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'flowlog_event_sqs_url', endpoint=ssm_endpoint) }}"
+waf_event_sqs_url: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'waf_event_sqs_url ', endpoint=ssm_endpoint) }}"
+mgmt_vpc_id: "{{ lookup('amazon.aws.aws_ssm', elastic_secrets_path + 'mgmt_vpc_id', endpoint=ssm_endpoint) }}"
+share_accounts: "{{ lookup('amazon.aws.aws_ssm', '/production/share_accounts', endpoint=ssm_endpoint) }}"

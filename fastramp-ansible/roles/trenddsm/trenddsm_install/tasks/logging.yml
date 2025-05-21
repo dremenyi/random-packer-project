@@ -1,0 +1,45 @@
+- name: AWS - Execute AWS Selenium Python script to configure Logging for Elastic
+  ansible.builtin.command: >
+    xvfb-run -a --server-args="-screen 0 1920x1080x24" {{ python_binary }} files/aws/chrome_configure_logging_elastic.py
+    --url https://{{ inventory_hostname }}.{{ ansible_domain }}:4119 --dsmsecretspath {{ dsm_secrets_path }} --region {{ aws_region }} --endpointurl {{ ssm_endpoint }}
+  args:
+    chdir: "{{ role_path }}"
+  register: selenium_dsm_logging_elastic
+  delegate_to: localhost
+  changed_when: selenium_dsm_logging_elastic.stdout_lines | select("match", ".*Selenium trenddsm script completed.*")
+  delay: 60
+  retries: 2
+  until: selenium_dsm_logging_elastic is not failed
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+    - deployed_siem == 'elastic'
+
+- name: Debug selenium_dsm_logging_elastic
+  ansible.builtin.debug:
+    var: selenium_dsm_logging_elastic.stdout_lines
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+    - deployed_siem == 'elastic'
+
+- name: Execute AWS Selenium Python script to configure Logging for Splunk
+  ansible.builtin.command: >
+    xvfb-run -a --server-args="-screen 0 1920x1080x24" {{ python_binary }} files/aws/chrome_configure_logging_splunk.py --url https://{{ inventory_hostname }}.{{ ansible_domain }}:4119
+    --dsmsecretspath {{ dsm_secrets_path }} --region {{ aws_region }} --domain {{ ansible_domain }} --endpointurl {{ ssm_endpoint }}
+  args:
+    chdir: "{{ role_path }}"
+  register: selenium_dsm_logging_splunk
+  delegate_to: localhost
+  changed_when: selenium_dsm_logging_splunk.stdout_lines | select("match", ".*Selenium trenddsm script completed.*")
+  delay: 60
+  retries: 2
+  until: selenium_dsm_logging_splunk is not failed
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+    - deployed_siem == 'splunk'
+
+- name: Debug selenium_dsm_logging_splunk
+  ansible.builtin.debug:
+    var: selenium_dsm_logging_splunk.stdout_lines
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+    - deployed_siem | default(omit) == 'splunk'

@@ -1,0 +1,26 @@
+- name: Create certs directory
+  ansible.builtin.file:
+    path: /etc/gitlab/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "{{ root_ca_store }}"
+    mode: "0644"
+  become: true
+  notify: "{{ update_ca_handler }}"
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /etc/gitlab/ssl/cacert.pem
+    mode: "0644"
+    owner: root
+    group: root
+    force: true
+  become: true

@@ -1,0 +1,5 @@
+{
+    postrotate
+        /usr/bin/setfacl -Rm u:splunk:rX /var/log
+    endscript
+}

@@ -1,0 +1,104 @@
+- name: Create default AD Groups
+  microsoft.ad.group:
+    name: "{{ item }}"
+    scope: global
+    path: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+    state: present
+  loop: "{{ ad_groups }}"
+
+# Note: STIG restricts login to domain controllers to only Domain Admins
+# You also cannot login to a non-domain controller with a Domain Admin account.
+# 2 default accounts are created here because of that.
+- name: Create default domain admin
+  microsoft.ad.user:
+    name: da_admin1
+    firstname: DA
+    surname: Admin1
+    password: "{{ da_admin1_password }}"
+    state: present
+    update_password: when_changed
+    password_never_expires: true
+    groups:
+      add:
+        - Domain Admins
+        - Enterprise Admins
+
+- name: Create default systems admin
+  microsoft.ad.user:
+    name: sa_admin1
+    firstname: SA
+    surname: Admin1
+    password: "{{ sa_admin1_password }}"
+    state: present
+    update_password: when_changed
+    password_never_expires: true
+    groups:
+      add:
+        - WindowsAdmins
+        - LinuxAdmins
+
+- name: Create Ansible service account
+  microsoft.ad.user:
+    name: svc_ansible
+    firstname: Service
+    surname: Ansible
+    password: "{{ svc_ansible_password }}"
+    state: present
+    update_password: when_changed
+    password_never_expires: true
+    path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+    groups:
+      add:
+        - AnsibleService
+        - LinuxAdmins
+
+- name: Create Ansible service account
+  microsoft.ad.user:
+    name: svc_ansible_da
+    firstname: Service
+    surname: Ansible DA
+    password: "{{ svc_ansible_da_password }}"
+    state: present
+    update_password: when_changed
+    password_never_expires: true
+    path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+    groups:
+      add:
+        - Domain Admins
+        - Enterprise Admins
+
+- name: Create domain join account
+  microsoft.ad.user:
+    name: svc_dj
+    firstname: Service
+    surname: Domain Join
+    password_never_expires: true
+    path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+    password: "{{ svc_dj_password }}"
+    update_password: when_changed
+
+# Note: It's technically possible to make this idempotent using the ActiveDirectory PS module, the AD drive, and Get-Acl / Set-Acl
+# But manipulating the commands is more complex than using dsacls.exe directly.  Since it doesn't throw errors and doesn't seem
+# to cause duplicates, I am not attempting to make this idempotent.
+- name: Give Domain Joiner Rights
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory
+
+      # Give Domain Joiner rights
+      $OrganizationalUnitDN =  "OU=Servers,{{ dom_disname }}"
+      $SearchAccount = Get-ADUser "svc_dj"
+      $SAM = $SearchAccount.SamAccountName
+      $UserAccount = "{{ netbios }}"+"\"+$SAM
+
+      DSQUERY * $OrganizationalUnitDN -filter '(|(objectClass=organizationalUnit))' -limit 0 | foreach-object {
+      dsacls.exe $_ /G $UserAccount":CCDC;Computer" /I:T | Out-Null
+      dsacls.exe $_ /G $UserAccount":LC;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":RC;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":WD;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":RP;;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":WS;Validated write to service principal name;Computer" /I:S | Out-Null
+      dsacls.exe $_ /G $UserAccount":WS;Validated write to DNS host name;Computer" /I:S | Out-Null
+      }
+      $Ansible.Changed = $true
+    error_action: stop

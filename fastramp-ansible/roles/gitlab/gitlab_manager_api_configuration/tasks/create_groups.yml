@@ -1,0 +1,38 @@
+- name: Create Gitlab Parent Group IAC
+  community.general.gitlab_group:
+    api_url: "{{ gitlab_api_url }}"
+    validate_certs: false
+    api_oauth_token: "{{ initial_oauth_token.json.access_token }}"
+    name: iac
+    path: iac
+    state: present
+
+- name: Create Gitlab group Ansible
+  community.general.gitlab_group:
+    api_url: "{{ gitlab_api_url }}"
+    validate_certs: false
+    api_oauth_token: "{{ initial_oauth_token.json.access_token }}"
+    name: ansible
+    path: ansible
+    state: present
+    parent: "iac"
+
+- name: Create Gitlab group Packer
+  community.general.gitlab_group:
+    api_url: "{{ gitlab_api_url }}"
+    validate_certs: false
+    api_oauth_token: "{{ initial_oauth_token.json.access_token }}"
+    name: packer
+    path: packer
+    state: present
+    parent: "iac"
+
+- name: Create Gitlab group Terraform
+  community.general.gitlab_group:
+    api_url: "{{ gitlab_api_url }}"
+    validate_certs: false
+    api_oauth_token: "{{ initial_oauth_token.json.access_token }}"
+    name: terraform
+    path: terraform
+    state: present
+    parent: "iac"

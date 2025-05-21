@@ -1,0 +1,38 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Install collection awx.awx
+  community.general.ansible_galaxy_install:
+    type: collection
+    name: awx.awx
+    dest: /usr/share/ansible/collections
+
+- name: Create API token from Ansible Controller
+  ansible.builtin.include_tasks: create_api_token.yml
+  when: aap_controller_admin_api_token == 'dummy'
+
+# Note: Not sure why, but this task fails with a 403 forbidden error.  I'm assuming this is a bug with AAP 2.4
+#- name: Set license from manifest file
+#  ansible.builtin.include_tasks: license.yml
+
+- name: Configure LDAP
+  ansible.builtin.include_tasks: ldap.yml
+
+- name: Create Organization
+  ansible.builtin.include_tasks: organization.yml
+
+- name: Create Credentials
+  ansible.builtin.include_tasks: credentials.yml
+
+- name: Create AWS Inventory
+  ansible.builtin.include_tasks: aws_aap_inventory.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+# - name: Configure Logging
+#   ansible.builtin.include_tasks: logging.yml
+#   when: configure_log_ingest
+
+- name: Create EE
+  ansible.builtin.include_tasks: set_ee.yml

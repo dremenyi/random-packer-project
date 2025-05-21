@@ -1,0 +1,2 @@
+---
+elastic_api_url: "https://{{ inventory_hostname }}:9200"

@@ -1,0 +1,92 @@
+- name: Set ILM Policy on Logs
+  ansible.builtin.uri:
+    url: "{{ elastic_api_url }}/_ilm/policy/logs"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: PUT
+    force_basic_auth: yes
+    status_code: 200, 409
+    body_format: json
+    body:
+      policy:
+        phases:
+          hot:
+            min_age: 0ms
+            actions:
+              rollover:
+                max_age: 90d
+                max_primary_shard_size: 50gb
+          delete:
+            min_age: 90d
+            actions:
+              delete: {}
+        _meta:
+          managed: true
+          description: default policy for the logs index template installed by x-pack
+  register: set_ilm_logs
+  changed_when: set_ilm_logs.status == 200
+
+- name: Debug set_ilm_logs
+  debug:
+    var: set_ilm_logs
+
+- name: Set ILM Policy on Metrics
+  ansible.builtin.uri:
+    url: "{{ elastic_api_url }}/_ilm/policy/metrics"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: PUT
+    force_basic_auth: yes
+    status_code: 200, 409
+    body_format: json
+    body:
+      policy:
+        phases:
+          hot:
+            min_age: 0ms
+            actions:
+              rollover:
+                max_age: 90d
+                max_primary_shard_size: 50gb
+          delete:
+            min_age: 90d
+            actions:
+              delete: {}
+        _meta:
+          managed: true
+          description: default policy for the metrics index template installed by x-pack
+  register: set_ilm_metrics
+  changed_when: set_ilm_metrics.status == 200
+
+- name: Debug set_ilm_metrics
+  debug:
+    var: set_ilm_metrics
+
+- name: Create default custom ilm policy
+  ansible.builtin.uri:
+    url: "{{ elastic_api_url }}/_ilm/policy/{{ org_name }}_ilm"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: PUT
+    force_basic_auth: yes
+    status_code: 200, 409
+    body_format: json
+    body:
+      policy:
+        phases:
+          hot:
+            min_age: 0ms
+            actions:
+              rollover:
+                max_age: 90d
+                max_primary_shard_size: 50gb
+          delete:
+            min_age: 90d
+            actions:
+              delete: {}
+  register: add_custom_ilm
+  changed_when: add_custom_ilm.status == 200
+
+- name: Debug add_custom_ilm
+  debug:
+    var: add_custom_ilm

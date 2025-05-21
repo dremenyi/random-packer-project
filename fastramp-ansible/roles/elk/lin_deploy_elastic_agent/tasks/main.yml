@@ -1,0 +1,30 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: AWS - Set domain from Packer SSM
+  ansible.builtin.set_fact:
+    ansible_domain: "{{ lookup('amazon.aws.aws_ssm', '/production/packer/domain_name', endpoint=ssm_endpoint) }}"
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+    - ansible_domain is not defined
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install Elastic Agent
+  ansible.builtin.include_tasks: install.yml
+  when: '"elastic-agent.service" not in ansible_facts.services'
+
+- name: Refresh service facts
+  ansible.builtin.service_facts:
+
+- name: Copy Root CA cert
+  ansible.builtin.include_tasks: copy_root_ca.yml
+
+- name: Configure Fleet
+  ansible.builtin.include_tasks: configure_fleet.yml
+  when:
+    - ansible_facts.services['elastic-agent.service']['state'] != 'running'
+    - not is_packer # Skip agent activation for a Packer build, activate instead in User Data to avoid duplication

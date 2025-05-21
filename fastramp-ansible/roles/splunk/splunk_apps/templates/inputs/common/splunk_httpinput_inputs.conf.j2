@@ -1,0 +1,20 @@
+[http]
+disabled=0
+port=8090
+enableSSL=1
+sslVersions=tls1.2
+allowSslCompression=false
+allowSslRenegotiation=false
+ackIdleCleanup=true
+cipherSuite=ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHAECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:AES128-GCM-SHA256:AES128-SHA256:AES128-SHA:AES256-GCM-SHA384:AES256-SHA256:AES256-SHA
+ecdhCurves={{ ecdh_curves }}
+
+{% for log in logs %}
+[http://{{ log.name }}]
+disabled = 0
+index = aws
+indexes = aws
+sourcetype = {{ log.sourcetype }}
+token = {{ log.token }}
+useACK = 1
+{% endfor %}

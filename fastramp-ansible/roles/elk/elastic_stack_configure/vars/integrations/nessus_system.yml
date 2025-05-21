@@ -1,0 +1,190 @@
+nessus_system_integration:
+  package:
+    name: system
+    version: "{{ package_version }}"
+  name: system-nessus
+  namespace: "{{ item.policy_namespace }}"
+  policy_id: "{{ policy_id }}"
+  inputs:
+    system-logfile:
+      enabled: true
+      streams:
+        system.auth:
+          enabled: true
+          vars:
+            ignore_older: 72h
+            paths:
+              - "/var/log/auth.log*"
+              - "/var/log/secure*"
+            preserve_original_event: false
+            tags:
+              - system-auth
+        system.syslog:
+          enabled: true
+          vars:
+            paths:
+              - "/var/log/messages*"
+              - "/var/log/syslog*"
+              - "/opt/nessus/var/nessus/logs/*.log"
+            tags:
+              - nessus
+            ignore_older: 72h
+    system-winlog:
+      enabled: false
+      streams:
+        system.application:
+          enabled: false
+          vars:
+            preserve_original_event: false
+            ignore_older: 72h
+            language: 0
+            tags: []
+        system.security:
+          enabled: false
+          vars:
+            preserve_original_event: false
+            ignore_older: 72h
+            language: 0
+            tags: []
+        system.system:
+          enabled: false
+          vars:
+            preserve_original_event: false
+            ignore_older: 72h
+            language: 0
+            tags: []
+    system-system/metrics:
+      enabled: true
+      vars: {}
+      streams:
+        system.core:
+          enabled: false
+          vars:
+            period: 10s
+            core.metrics:
+              - percentages
+            tags: []
+        system.cpu:
+          enabled: true
+          vars:
+            period: 10s
+            cpu.metrics:
+              - percentages
+              - normalized_percentages
+            tags: []
+        system.diskio:
+          enabled: true
+          vars:
+            period: 10s
+            diskio.include_devices: []
+            tags: []
+        system.filesystem:
+          enabled: true
+          vars:
+            period: 1m
+            filesystem.ignore_types: []
+            tags: []
+            processors: |
+              - drop_event.when.regexp:
+                  system.filesystem.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)
+        system.fsstat:
+          enabled: true
+          vars:
+            period: 1m
+            tags: []
+            processors: |
+              - drop_event.when.regexp:
+                  system.fsstat.mount_point: ^/(sys|cgroup|proc|dev|etc|host|lib|snap)($|/)
+        system.load:
+          enabled: true
+          vars:
+            period: 10s
+            tags: []
+        system.memory:
+          enabled: true
+          vars:
+            period: 10s
+            tags: []
+        system.network:
+          enabled: true
+          vars:
+            period: 10s
+            network.interfaces: []
+            tags: []
+        system.process:
+          enabled: true
+          vars:
+            period: 10s
+            process.include_top_n.by_cpu: 5
+            process.include_top_n.by_memory: 5
+            process.cmdline.cache.enabled: true
+            process.cgroups.enabled: false
+            process.env.whitelist: []
+            process.include_cpu_ticks: false
+            processes:
+              - ".*"
+            tags: []
+        system.process.summary:
+          enabled: true
+          vars:
+            period: 10s
+            tags: []
+        system.socket_summary:
+          enabled: true
+          vars:
+            period: 10s
+            tags: []
+        system.uptime:
+          enabled: true
+          vars:
+            period: 10s
+            tags: []
+    system-httpjson:
+      enabled: false
+      vars:
+        url: https://server.example.com:8089
+        preserve_original_event: false
+        ssl: |
+          #certificate_authorities:
+          #  - |
+          #    -----BEGIN CERTIFICATE-----
+          #    MIIDCjCCAfKgAwIBAgITJ706Mu2wJlKckpIvkWxEHvEyijANBgkqhkiG9w0BAQsF
+          #    ADAUMRIwEAYDVQQDDAlsb2NhbGhvc3QwIBcNMTkwNzIyMTkyOTA0WhgPMjExOTA2
+          #    MjgxOTI5MDRaMBQxEjAQBgNVBAMMCWxvY2FsaG9zdDCCASIwDQYJKoZIhvcNAQEB
+          #    BQADggEPADCCAQoCggEBANce58Y/JykI58iyOXpxGfw0/gMvF0hUQAcUrSMxEO6n
+          #    fZRA49b4OV4SwWmA3395uL2eB2NB8y8qdQ9muXUdPBWE4l9rMZ6gmfu90N5B5uEl
+          #    94NcfBfYOKi1fJQ9i7WKhTjlRkMCgBkWPkUokvBZFRt8RtF7zI77BSEorHGQCk9t
+          #    /D7BS0GJyfVEhftbWcFEAG3VRcoMhF7kUzYwp+qESoriFRYLeDWv68ZOvG7eoWnP
+          #    PsvZStEVEimjvK5NSESEQa9xWyJOmlOKXhkdymtcUd/nXnx6UTCFgnkgzSdTWV41
+          #    CI6B6aJ9svCTI2QuoIq2HxX/ix7OvW1huVmcyHVxyUECAwEAAaNTMFEwHQYDVR0O
+          #    BBYEFPwN1OceFGm9v6ux8G+DZ3TUDYxqMB8GA1UdIwQYMBaAFPwN1OceFGm9v6ux
+          #    8G+DZ3TUDYxqMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAG5D
+          #    874A4YI7YUwOVsVAdbWtgp1d0zKcPRR+r2OdSbTAV5/gcS3jgBJ3i1BN34JuDVFw
+          #    3DeJSYT3nxy2Y56lLnxDeF8CUTUtVQx3CuGkRg1ouGAHpO/6OqOhwLLorEmxi7tA
+          #    H2O8mtT0poX5AnOAhzVy7QW0D/k4WaoLyckM5hUa6RtvgvLxOwA0U+VGurCDoctu
+          #    8F4QOgTAWyh8EZIwaKCliFRSynDpv3JTUwtfZkxo6K6nce1RhCWFAsMvDZL8Dgc0
+          #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
+          #    sxSmbIUfc2SGJGCJD4I=
+          #    -----END CERTIFICATE-----
+      streams:
+        system.application:
+          enabled: false
+          vars:
+            interval: 10s
+            search: search sourcetype="XmlWinEventLog:Application"
+            tags:
+              - forwarded
+        system.security:
+          enabled: false
+          vars:
+            interval: 10s
+            search: search sourcetype="XmlWinEventLog:Security"
+            tags:
+              - forwarded
+        system.system:
+          enabled: false
+          vars:
+            interval: 10s
+            search: search sourcetype="XmlWinEventLog:System"
+            tags:
+              - forwarded

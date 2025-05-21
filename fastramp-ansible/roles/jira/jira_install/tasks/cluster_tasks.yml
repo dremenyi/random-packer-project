@@ -1,0 +1,34 @@
+- name: Check if Cluster properties exists
+  ansible.builtin.stat:
+    path: /var/atlassian/application-data/jira/cluster.properties
+  become: true
+  register: cluster_properties
+
+- name: Configure Clustering
+  ansible.builtin.include_tasks: configure_cluster.yml
+  when:
+    - inventory_hostname == 'jira1' # Run only on first instance
+    - not cluster_properties.stat.exists
+    - not backup_dbconfig.stat.exists
+
+- name: Add Cluster node Jira1
+  ansible.builtin.include_tasks: add_cluster_node.yml
+  when:
+    - inventory_hostname == 'jira1'
+    - not cluster_properties.stat.exists
+    - backup_dbconfig.stat.exists
+
+- name: Add Cluster node Jira2
+  ansible.builtin.include_tasks: add_cluster_node.yml
+  when:
+    - inventory_hostname == 'jira2'
+    - not cluster_properties.stat.exists
+
+- name: Create CNAME record for Jira ALB
+  community.windows.win_dns_record:
+    name: "jira"
+    type: "CNAME"
+    value: "{{ alb_hostname }}"
+    zone: "{{ ansible_domain }}"
+  delegate_to: dc1
+  run_once: true

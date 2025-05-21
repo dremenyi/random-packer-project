@@ -1,0 +1,135 @@
+# Splunk Default Applications
+---
+This is a manifest of the app files, original source, version, and release date to help keep the apps current.
+
+## TA (Technical Add-on)
+---
+- Coalfire Security Compliance
+  - Uncompressed Folder Name: cf_security_compliance
+  - Download URL: https://coalfire.app.box.com/s/bbmcj0qgkpv83p9ylko5jx75djxtzmnu
+- Splunk Add-on for Unix and Linux
+  - Uncompressed Folder Name: Splunk_TA_nix
+  - Download URL: https://splunkbase.splunk.com/app/833/
+  - Version: 8.7.0
+  - Release Date: July 26, 2022
+- Splunk Add-on for Microsoft Windows
+  - Uncompressed Folder Name: Splunk_TA_windows
+  - Download URL: https://splunkbase.splunk.com/app/742/
+  - Version: 8.5.0
+  - Release Date: April 21, 2022
+- Splunk Add-on for Amazon Web Services (AWS)
+  - Uncompressed Folder Name: Splunk_TA_aws
+  - Download URL: https://splunkbase.splunk.com/app/1876/
+  - Version: 6.2.0
+  - Release Date: July 28, 2022
+- Trend Micro Deep Security for Splunk
+  - Uncompressed Folder Name: TrendMicroDeepSecurity
+  - Download URL: https://splunkbase.splunk.com/app/1936/
+  - Version: 1.8.2
+  - Release Date: Oct. 7, 2021
+- Palo Alto Networks Add-on for Splunk
+  - Uncompressed Splunk_TA_paloalto
+  - Download URL: https://splunkbase.splunk.com/app/2757/
+  - Version: 7.1.0
+  - Release Date: April 20, 2022
+- Splunk Add-on for Cisco ASA
+  - Uncompressed Folder Name: Splunk_TA_cisco-asa
+  - Download URL: https://splunkbase.splunk.com/app/1620/
+  - Version: 5.1.0
+  - Release Date: July 14, 2022
+- Tenable Add-On for Splunk
+  - Uncompressed Folder Name: TA-tenable
+  - Download URL: https://splunkbase.splunk.com/app/4060/
+  - Version: 5.2.4
+  - Release Date: March 30, 2022
+- Atlassian JIRA Issue Alerts add-on for Splunk
+  - Uncompressed Folder Name: TA-atlassian-jira-issue-alerts
+  - Download URL: https://splunkbase.splunk.com/app/5037/
+  - Version: 1.2.1
+  - Release Date: Dec. 18, 2020
+- AWS Web Application Firewall Add-on
+  - Uncompressed Folder Name: Splunk_TA_aws
+  - Download URL: https://splunkbase.splunk.com/app/4714
+  - Version: 1.0.3
+  - Release Date: April 25, 2023
+  
+
+## Viz / Dashboards
+---
+- Departures Board Viz
+  - Uncompressed Folder Name: departures-board-viz
+  - Download URL: https://splunkbase.splunk.com/app/4292/
+  - Version: 1.2.0
+  - Release Date: Aug. 28, 2021
+- Flow Map Viz
+  - Uncompressed Folder Name: flow_map_viz
+  - Download URL: https://splunkbase.splunk.com/app/4657/
+  - Version: 1.4.14
+  - Release Date: Jan. 9, 2022
+- Force Directed App For Splunk
+  - Uncompressed Folder Name: force_directed_viz
+  - Download URL: https://splunkbase.splunk.com/app/3767/
+  - Version: 3.1.0
+  - Release Date: June 25, 2021
+- Splunk App for Lookup File Editing
+  - Uncompressed Folder Name: lookup_editor
+  - Download URL: https://splunkbase.splunk.com/app/1724/
+  - Version: 3.6.0
+  - Release Date: May 5, 2022
+- PagerDuty App for Splunk
+  - Uncompressed Folder Name: pagerduty_incidents
+  - Download URL: https://splunkbase.splunk.com/app/3013/
+  - Version: 3.0.4
+  - Release Date: Aug. 9, 2021
+- Punchcard - Custom Visualization
+  - Uncompressed Folder Name: punchcard_app
+  - Download URL: https://splunkbase.splunk.com/app/3129/
+  - Version: 1.5.0
+  - Release Date: July 1, 2021
+- Splunk Sankey Diagram - Custom Visualization
+  - Uncompressed Folder Name: sankey_diagram_app
+  - Download URL: https://splunkbase.splunk.com/app/3112/
+  - Version: 1.6.0
+  - Release Date: July 1, 2021
+- Splunk Machine Learning Toolkit
+  - Uncompressed Folder Name: Splunk_ML_Toolkit
+  - Download URL: https://splunkbase.splunk.com/app/2890/
+  - Version: 5.3.3
+  - Release Date: Aug. 11, 2022
+- Splunk Common Information Model (CIM)
+  - Uncompressed Folder Name: Splunk_SA_CIM
+  - Download URL: https://splunkbase.splunk.com/app/1621/
+  - Version: 5.0.1
+  - Release Date: March 22, 2022
+- Splunk Timeline - Custom Visualization
+  - Uncompressed Folder Name: timeline_app
+  - Download URL: https://splunkbase.splunk.com/app/3120/
+  - Version: 1.6.1
+  - Release Date: Sept. 14, 2021
+- Horseshoe Meter - Custom Visualization
+  - Uncompressed Folder Name: horseshoe_meter_app
+  - Download URL: https://splunkbase.splunk.com/app/3166/
+  - Version: 1.5.1
+  - Release Date: Sept. 14, 2021
+- Network Diagram Viz
+  - Uncompressed Folder Name: network-diagram-viz
+  - Download URL: https://splunkbase.splunk.com/app/4438/
+  - Version: 2.1.1
+  - Release Date: Sept. 3, 2021
+- Bullet Graph - Custom Visualization
+  - Uncompressed Folder Name: bullet_graph_app
+  - Download URL: https://splunkbase.splunk.com/app/3144/
+  - Version: 1.5.0
+  - Release Date: July 14, 2021
+- Splunk Supporting Add-on for Active Directory
+  - Uncompressed Folder Name: SA-ldapsearch
+  - Download URL: https://splunkbase.splunk.com/app/1151/
+  - Version: 3.0.5
+  - Release Date: Sept. 9, 2022
+
+## Other
+- Ansible Monitoring and Diagnostics
+  - Uncompressed Folder Name: Ansible_Splunk
+  - Download URL: https://splunkbase.splunk.com/app/4023
+  - Version: 1.2.3
+  - Release Date: May 11, 2022

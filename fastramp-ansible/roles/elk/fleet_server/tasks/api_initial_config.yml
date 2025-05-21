@@ -1,0 +1,53 @@
+- name: Delegate to Ansible host
+  delegate_to: localhost
+  block:
+    ### Initial Config ###
+    - name: Set default fleetservers list to empty array
+      ansible.builtin.set_fact:
+        fleetservers_list: []
+
+    - name: Format fleetservers item and add to list
+      ansible.builtin.set_fact:
+        fleetservers_list: "{{ fleetservers_list + [ 'https://' ~ item ~ '.' ~ ansible_domain ~ ':8220' ] }}"
+      loop: "{{ query('inventory_hostnames', 'ingest') }}"
+
+    - name: Debug fleetservers_list
+      ansible.builtin.debug:
+        var: fleetservers_list
+
+    - name: Set Fleet servers
+      ansible.builtin.uri:
+        url: "{{ kibana_api_url }}/api/fleet/settings"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: PUT
+        force_basic_auth: true
+        status_code: 200
+        headers:
+          kbn-xsrf: true
+        body_format: json
+        body:
+          fleet_server_hosts: "{{ fleetservers_list }}"
+      register: settings_fleet
+      changed_when: settings_fleet.status == 200
+
+    - name: Debug settings_fleet
+      ansible.builtin.debug:
+        var: settings_fleet
+
+    - name: Setup Fleet
+      ansible.builtin.uri:
+        url: "{{ kibana_api_url }}/api/fleet/setup"
+        user: "elastic"
+        url_password: "{{ elastic_password }}"
+        method: POST
+        force_basic_auth: true
+        status_code: 200
+        headers:
+          kbn-xsrf: true
+      register: setup_fleet
+      changed_when: setup_fleet.status == 200
+
+    - name: Debug setup_fleet
+      ansible.builtin.debug:
+        var: setup_fleet

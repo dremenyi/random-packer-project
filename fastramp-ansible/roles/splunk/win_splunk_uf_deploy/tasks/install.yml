@@ -1,0 +1,105 @@
+- name: Set environment variable for Splunk home dir
+  ansible.windows.win_environment:
+    state: present
+    name: "SPLUNK_HOME"
+    value: "{{ splunk_home }}"
+    level: machine
+
+- name: Set TLS
+  ansible.windows.win_powershell:
+    script: |
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    error_action: stop
+
+- name: Download the agent directly from splunk
+  ansible.windows.win_get_url:
+    url: "{{ splunk_win_download_url }}"
+    dest: "{{ splunk_downloadpath }}\\{{ splunk_win_file_name }}"
+
+- name: Check SHA512 Hash of file with stat
+  ansible.windows.win_stat:
+    path: "{{ splunk_downloadpath }}\\{{ splunk_win_file_name }}"
+    get_checksum: true
+    checksum_algorithm: sha512
+  register: splunk_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - splunk_file.stat.checksum == splunk_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ splunk_file.stat.checksum }}, the expected hash is {{ splunk_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: Install SplunkUF with arguments
+  ansible.windows.win_package:
+    path: "{{ splunk_downloadpath }}\\{{ splunk_win_file_name }}"
+    arguments: "DEPLOYMENT_SERVER={{ splunkds1 }}:8089 LAUNCHSPLUNK=0 SPLUNKPASSWORD={{ user_password }} AGREETOLICENSE=Yes /quiet"
+  no_log: "{{ censored }}"
+
+- name: Create splunk-launch.conf
+  community.windows.win_lineinfile:
+    path: '{{ splunk_home }}\etc\splunk-launch.conf'
+    line: "{{ item.option }} = {{ item.value }}"
+    state: present
+    create: true
+  with_items:
+    - { option: "SPLUNK_HOME", value: "{{ splunk_home }}" }
+    - { option: "SPLUNK_SERVER_NAME", value: "Splunkd" }
+    - { option: "SPLUNK_FIPS", value: "1" }
+
+- name: Create user-seed.conf
+  community.windows.win_lineinfile:
+    path: '{{ splunk_home }}\etc\system\local\user-seed.conf'
+    line: "{{ item.line }}"
+    regexp: "{{ item.regexp }}"
+    state: present
+    create: true
+  no_log: true
+  loop:
+    - { line: "[user_info]", regexp: '\[user_info\]' }
+    - { line: "USERNAME = admin", regexp: "USERNAME" }
+    - { line: "PASSWORD = {{ user_password }}", regexp: "PASSWORD" }
+
+- name: Create deploymentclient.conf
+  community.windows.win_lineinfile:
+    path: "{{ splunk_home }}\\etc\\system\\local\\deploymentclient.conf"
+    line: "{{ item.line }}"
+    regexp: "{{ item.regexp }}"
+    insertafter: "{{ item.insertafter | default(omit) }}"
+    state: present
+    create: true
+  loop:
+    - { line: "[target-broker:deploymentServer]", regexp: '\[target-broker:deploymentServer\]' }
+    - { line: "targetUri = {{ splunkds1 }}:8089", regexp: "targetUri", insertafter: '\[target-broker:deploymentServer\]' }
+    - { line: "[deployment-client]", regexp: '\[deployment-client\]', insertafter: "targetUri = {{ splunkds1 }}:8089" }
+    - { line: "clientName = {{ inventory_hostname }}", regexp: "clientName", insertafter: '\[deployment-client\]' }
+
+- name: Configure sslConfig in server.conf
+  # The server.conf is populating during installation and have “sslPassword” line under “[sslConfig]” stanza
+  community.windows.win_lineinfile:
+    path: "{{ splunk_home }}\\etc\\system\\local\\server.conf"
+    insertafter: "^sslPassword"
+    line: "{{ item.option }} = {{ item.value }}"
+    state: present
+  loop:
+    - { option: "sslVersions", value: "tls1.2" }
+    - { option: "cipherSuite", value: "{{ cipher_suite }}" }
+    - { option: "ecdhCurves", value: "{{ ecdh_curves }}" }
+    - { option: "useSplunkdClientSSLCompression", value: "false" }
+    - { option: "useClientSSLCompression", value: "false" }
+    - { option: "allowSslCompression", value: "false" }
+
+- name: Configure deployment server pass4SymmKey in server.conf
+  community.windows.win_lineinfile:
+    path: "{{ splunk_home }}\\etc\\system\\local\\server.conf"
+    insertafter: '\[deployment\]'
+    line: "pass4SymmKey = {{ pass_4_symm_key }}"
+    state: present
+  loop:
+    - { line: "[deployment]", insertafter: "stack_id = free" }
+    - { line: "pass4SymmKey = {{ pass_4_symm_key }}", insertafter: '\[deployment\]' }
+
+- name: Enable boot-start
+  ansible.windows.win_command:
+    cmd: '"splunk.exe" enable boot-start'
+    chdir: "{{ splunk_home }}\\bin"

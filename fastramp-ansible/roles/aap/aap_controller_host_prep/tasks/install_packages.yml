@@ -1,0 +1,13 @@
+# Note: Versionlock is used in Packer to pin ansible-core to 2.13
+- name: Delete all entries in the locklist of versionlock
+  community.general.dnf_versionlock:
+    state: clean
+  become: true
+
+# Note: ansible-core 2.14 (tied to Python 3.11) is a specific requirement for AAP 2.4
+- name: Install Packages
+  ansible.builtin.dnf:
+    name:
+      - ansible-core
+    state: latest
+  become: true

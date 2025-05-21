@@ -1,0 +1,73 @@
+- name: Create certs directory
+  ansible.builtin.file:
+    path: /etc/gitlab/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+
+- name: AWS Tasks
+  when: ansible_system_vendor == 'Amazon EC2'
+  block:
+    - name: Downloading RDS Root GovCloud West certificate
+      ansible.builtin.get_url:
+        url: https://s3-us-gov-west-1.amazonaws.com/rds-downloads/rds-combined-ca-us-gov-bundle.pem
+        dest: /etc/gitlab/ssl/rds-combined-bundle.pem
+        mode: "0644"
+      when: aws_region is match(".*gov-west.*")
+      become: true
+
+    - name: Downloading RDS Root GovCloud East certificate
+      ansible.builtin.get_url:
+        url: https://s3-us-gov-east-1.amazonaws.com/rds-downloads/rds-combined-ca-us-gov-bundle.pem
+        dest: /etc/gitlab/ssl/rds-combined-bundle.pem
+        mode: "0644"
+      when: aws_region is match(".*gov-east.*")
+      become: true
+
+    - name: Downloading RDS Root Commercial certificate
+      ansible.builtin.get_url:
+        url: https://s3.amazonaws.com/rds-downloads/rds-ca-2019-root.pem
+        dest: /etc/gitlab/ssl/rds-combined-bundle.pem
+        mode: "0644"
+      when: aws_region is not match(".*gov.*")
+      become: true
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "{{ root_ca_store }}"
+    mode: "0644"
+  become: true
+  notify: "{{ update_ca_handler }}"
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /etc/gitlab/ssl/cacert.pem
+    mode: "0644"
+    owner: root
+    group: root
+    force: true
+  become: true
+
+- name: Copy gitlab certificate
+  ansible.builtin.copy:
+    content: "{{ gitlab_cert }}"
+    dest: /etc/gitlab/ssl/server.crt
+    mode: "0644"
+    owner: root
+    group: root
+    force: true
+  become: true
+
+- name: Copy gitlab private key
+  ansible.builtin.copy:
+    content: "{{ gitlab_cert_key }}"
+    dest: /etc/gitlab/ssl/server.key
+    mode: "0400"
+    owner: root
+    group: root
+    force: true
+  become: true

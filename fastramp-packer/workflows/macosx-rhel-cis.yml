@@ -1,0 +1,47 @@
+name: "MacOSX Build RHEL-CIS AMI"
+
+on:
+  workflow_dispatch:
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.SANDBOX_3_AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.SANDBOX_3_AWS_SECRET_ACCESS_KEY }}
+  PACKER_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  AWS_REGION: us-east-1
+
+jobs:
+  packer:
+    name: "Packer Deployment"
+    runs-on: "macos-12"
+
+    steps:
+      - name: Checkout the repository to the runner
+        uses: actions/checkout@v3
+        with:
+          path: fastramp-packer
+
+      - name: Checkout the Ansible repository to the runner
+        uses: actions/checkout@v3
+        with: 
+          repository: Coalfire-CF/fastramp-ansible
+          path: fastramp-ansible
+          ssh-key: ${{ secrets.FASTRAMP_ANSIBLE_REPO_DEPLOY_KEY }}
+
+      - name: Check dir
+        run: ls -lah
+
+      - name: Check dir fastramp-packer
+        run: ls -lah fastramp-packer
+
+      - name: Check dir fastramp-ansible
+        run: ls -lah fastramp-ansible
+
+      - name: packer init
+        id: init
+        run: packer init .
+        working-directory: fastramp-packer/aws
+
+      - name: packer apply
+        id: apply
+        run: packer build -only="*rhel-cis*" -var-file=vars/variables.pkrvars.hcl .
+        working-directory: fastramp-packer/aws

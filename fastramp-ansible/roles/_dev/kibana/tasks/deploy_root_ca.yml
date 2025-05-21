@@ -1,0 +1,31 @@
+- name: Create certs directory
+  ansible.builtin.file:
+    path: /etc/kibana/certs/
+    state: directory
+    owner: "kibana"
+    group: "kibana"
+  become: true
+
+- name: Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: "/etc/kibana/certs/cacert.pem"
+    owner: "kibana"
+    group: "kibana"
+    mode: 0644
+  become: true
+
+- name: Copy Root CA to certificate store
+  ansible.builtin.copy:
+    src: "/etc/kibana/certs/cacert.pem"
+    dest: /etc/pki/ca-trust/source/anchors/cacert.pem
+    remote_src: true
+    mode: 0644
+  register: copy_ca_root
+  become: true
+
+- name: Update CA Trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true

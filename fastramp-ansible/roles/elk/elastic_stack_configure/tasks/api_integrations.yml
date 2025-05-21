@@ -1,0 +1,42 @@
+- name: Set Package Version to latest
+  ansible.builtin.set_fact:
+    package_version: "{{ get_integration_packages.json | community.general.json_query( field_query ) | first }}"
+  vars:
+    field_query: "items[?name=='{{ item.package_name }}'].version"
+  when: item.package_version is not defined
+
+- name: Set Package Version to latest
+  ansible.builtin.set_fact:
+    package_version: "{{ item.package_version }}"
+  when: item.package_version is defined
+
+- name: Set Policy ID
+  ansible.builtin.set_fact:
+    policy_id: "{{ get_agent_policies.json | community.general.json_query( field_query ) | first }}"
+  vars:
+    field_query: "items[?namespace=='{{ item.policy_namespace }}'].id"
+
+- name: Include vars file
+  ansible.builtin.include_vars: "integrations/{{ item.name }}.yml"
+
+# 200 = Successful
+# 400/409 = Already exists
+- name: Add Integration
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/fleet/package_policies"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: POST
+    force_basic_auth: true
+    status_code: 200, 400, 409
+    headers:
+      kbn-xsrf: true
+    body_format: json
+    body: "{{ lookup('ansible.builtin.vars', item.name + '_integration') }}"
+    timeout: 120
+  register: add_integration
+  changed_when: add_integration.status == 200
+
+- name: Debug add_integration
+  ansible.builtin.debug:
+    var: add_integration

@@ -1,0 +1,46 @@
+- name: Check if python2 is available
+  ansible.builtin.command: which python2
+  register: python2_check
+  changed_when: false
+  failed_when: false
+
+- name: Set Python2 path
+  ansible.builtin.set_fact:
+    python2_bin: "{{ python2_check.stdout if python2_check.rc == 0 else '/usr/bin/python2' }}"
+
+- name: Install Python packages using dnf/yum directly
+  ansible.builtin.shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y {{ item }}
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y {{ item }}
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  loop:
+    - python2-rpm
+    - libselinux-python
+  register: python2_packages
+  failed_when: python2_packages.rc != 0
+  changed_when: "'Nothing to do' not in python2_packages.stdout and 'already installed' not in python2_packages.stdout"
+  args:
+    executable: /bin/bash
+
+- name: Install Python3 packages using dnf/yum directly
+  ansible.builtin.shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y python3-rpm
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y python3-rpm
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: python3_packages
+  failed_when: python3_packages.rc != 0
+  changed_when: "'Nothing to do' not in python3_packages.stdout and 'already installed' not in python3_packages.stdout"
+  args:
+    executable: /bin/bash
+  when:
+    - ansible_python.version.major is version('3', '=')

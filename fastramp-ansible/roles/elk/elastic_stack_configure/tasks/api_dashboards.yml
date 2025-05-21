@@ -1,0 +1,21 @@
+- name: Import saved Dashboard
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/saved_objects/_import?overwrite=true"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: POST
+    force_basic_auth: true
+    status_code: 200, 204, 400
+    headers:
+      kbn-xsrf: true
+    body_format: form-multipart
+    body:
+      file:
+        content: "{{ item.payload }}"
+        filename: "{{ item.filename }}"
+        mime_type: "{{ item.mime_type }}"
+  register: import_dashboard
+  changed_when: import_dashboard == 200
+  loop:
+    - { filename: coalfire_kibana_dashboards_v_0.ndjson, payload: "{{ lookup('ansible.builtin.file', 'dashboards/coalfire_kibana_dashboards_v_0.ndjson') }}", mime_type: application/json}
+  no_log: true

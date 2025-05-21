@@ -1,0 +1,211 @@
+- name: Install EPEL
+  ansible.builtin.yum_repository:
+    name: epel
+    description: EPEL YUM repo
+    baseurl: https://download.fedoraproject.org/pub/epel/8/Everything/x86_64/
+    enabled: false
+    gpgkey: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-8
+    gpgcheck: true
+  become: true
+  when: ansible_facts['distribution'] == 'RedHat'
+
+- name: Install the 'Server with GUI' package group
+  ansible.builtin.yum:
+    name: "@Server with GUI"
+    state: present
+    exclude:
+      - firewalld
+      - firefox
+  become: true
+  when: ansible_facts['distribution'] == 'RedHat'
+
+# https://aws.amazon.com/premiumsupport/knowledge-center/ec2-linux-2-install-gui/
+- name: AL2 tasks
+  when: ansible_facts['distribution'] == 'Amazon'
+  block:
+    # 2.    Update your instance by running sudo yum update, and then reboot the instance
+    #  Failure to update and reboot can lead to unpredictable results when following these steps.
+    - name: Upgrade all packages
+      ansible.builtin.yum:
+        name: "*"
+        state: latest
+      become: true
+
+    - name: Reboot
+      ansible.builtin.reboot:
+      become: true
+
+    - name: Install MATE
+      ansible.builtin.command:
+        cmd: amazon-linux-extras install -y mate-desktop1.x
+      become: true
+      register: install_mate
+      changed_when: install_mate.rc == 0
+
+    - name: Set MATE as default desktop
+      ansible.builtin.copy:
+        content: PREFERRED=/usr/bin/mate-session
+        dest: /etc/sysconfig/desktop
+        mode: "0644"
+      become: true
+
+    - name: Regenerate machine-id
+      ansible.builtin.command:
+        cmd: dbus-uuidgen --ensure
+        creates: /etc/machine-id
+      become: true
+
+    - name: Set machine-id perms
+      ansible.builtin.file:
+        path: /etc/machine-id
+        state: file
+        mode: "0644"
+      become: true
+
+    - name: Install AL2 Packages
+      ansible.builtin.yum:
+        name:
+          - fuse
+        state: present
+      become: true
+  # End AL2 tasks block
+
+- name: Ubuntu tasks
+  when: ansible_facts['distribution'] == 'Ubuntu'
+  block:
+    - name: Install Ubuntu Desktop
+      ansible.builtin.apt:
+        name: ubuntu-desktop
+        state: present
+        update_cache: true
+      become: true
+
+- name: RHEL - Install xrdp
+  ansible.builtin.package:
+    name:
+      - xrdp
+      - tigervnc-server
+    enablerepo:
+      - epel
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Install xrdp
+  ansible.builtin.package:
+    name:
+      - xrdp
+      - tightvncserver
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Start xrdp
+  ansible.builtin.service:
+    name: xrdp
+    state: started
+    enabled: true
+  become: true
+
+- name: Get current systemd default
+  ansible.builtin.command:
+    cmd: systemctl get-default
+  changed_when: false
+  become: true
+  register: systemdefault
+
+- name: Set default to graphical target
+  ansible.builtin.command:
+    cmd: systemctl set-default graphical.target
+  become: true
+  register: set_graphical
+  when: "'graphical' not in systemdefault.stdout"
+  changed_when: set_graphical.stderr_lines | select("match", ".*Created symlink.*")
+
+- name: RHEL - Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /etc/pki/ca-trust/source/anchors/cacert.pem
+    mode: '0644'
+    force: true
+  become: true
+  notify: rhel update ca trust
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Copy Root CA file
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /usr/local/share/ca-certificates/cacert.crt
+    mode: '0644'
+  become: true
+  notify: ubuntu update ca trust
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+# Force CA Trust update now
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: RHEL - Copy server certificate
+  ansible.builtin.copy:
+    content: "{{ server_cert }}"
+    dest: /etc/xrdp/servercert.pem
+    mode: '0644'
+    force: true
+  become: true
+  notify: restart xrdp
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: RHEL - Copy server private key
+  ansible.builtin.copy:
+    content: "{{ server_cert_key }}"
+    dest: /etc/xrdp/serverkey.pem
+    mode: '0400'
+    force: true
+  become: true
+  notify: restart xrdp
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Copy server certificate
+  ansible.builtin.copy:
+    content: "{{ server_cert }}"
+    dest: /etc/xrdp/servercert.pem
+    mode: '0644'
+    force: true
+    owner: xrdp
+    group: xrdp
+  become: true
+  notify: restart xrdp
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Ubuntu - Copy server private key
+  ansible.builtin.copy:
+    content: "{{ server_cert_key }}"
+    dest: /etc/xrdp/serverkey.pem
+    mode: '0400'
+    force: true
+    owner: xrdp
+    group: xrdp
+  become: true
+  notify: restart xrdp
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Adjust xrdp settings
+  community.general.ini_file:
+    path: /etc/xrdp/xrdp.ini
+    section: Globals
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    mode: "0644"
+    backup: true
+  become: true
+  notify: restart xrdp
+  loop:
+    - { option: "crypt_level", value: "fips" }
+    - { option: "certificate", value: "/etc/xrdp/servercert.pem" }
+    - { option: "key_file", value: "/etc/xrdp/serverkey.pem" }
+    - { option: "domain_user_separator", value: "@" }
+    - { option: "ssl_protocols", value: "TLSv1.2, TLSv1.3" }
+    - { option: "tls_ciphers", value: "FIPS:!3DES:!DES:!eNULL:!aNULL:@STRENGTH" }
+    - { option: "bitmap_cache", value: "true" }
+    - { option: "bitmap_compression", value: "true" }
+    - { option: "bulk_compression", value: "true" }

@@ -1,0 +1,52 @@
+- name: Initial Config
+  ansible.builtin.include_tasks: api_initial_config.yml
+  run_once: true
+
+- name: Agent Policies
+  ansible.builtin.include_tasks: api_agent_policies.yml
+  run_once: true
+
+- name: Fleet Outputs
+  ansible.builtin.include_tasks: api_fleet_outputs.yml
+  run_once: true
+
+- name: Get Agent Policy IDs
+  ansible.builtin.include_tasks: api_get_agent_policy_ids.yml
+
+- name: Create Integrations
+  ansible.builtin.include_tasks: api_integrations.yml
+  run_once: true
+
+- name: Create Elasticsearch Service Token
+  ansible.builtin.include_tasks: api_service_token.yml
+
+- name: Setup as Fleet Server
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/elastic-agent
+      - enroll
+      - --force
+      - "--url=https://{{ inventory_hostname }}.{{ ansible_domain }}:8220"
+      - "--fleet-server-es=https://esingest1.{{ ansible_domain }}:9200"
+      - "--fleet-server-service-token={{ fleet_service_token.json.token.value }}"
+      - "--fleet-server-policy={{ fleet_policy_id }}"
+      - "--certificate-authorities={{ elastic_home }}/certs/cacert.pem"
+      - "--fleet-server-es-ca={{ elastic_home }}/certs/cacert.pem"
+      - "--fleet-server-cert={{ elastic_home }}/certs/server.cer"
+      - "--fleet-server-cert-key={{ elastic_home }}/certs/server_unenc.key"
+      - "--fleet-server-port=8220"
+  become: true
+  register: enroll_fleet_server
+  changed_when: enroll_fleet_server.stdout_lines | select("match", ".*Successfully enrolled the Elastic Agent.*")
+  no_log: true
+
+- name: Debug enroll_fleet_server
+  ansible.builtin.debug:
+    var: enroll_fleet_server
+
+- name: Start Elastic Agent
+  ansible.builtin.service:
+    name: elastic-agent
+    state: started
+    enabled: true
+  become: true

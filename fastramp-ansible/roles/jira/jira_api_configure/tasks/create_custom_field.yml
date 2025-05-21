@@ -1,0 +1,47 @@
+---
+# In-Development
+- name: Custom Field - Search
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/customFields"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: true
+    status_code: 200
+  register: fields
+
+- name: Check for existing Custom Field
+  ansible.builtin.set_fact:
+    search: "{{ fields.json | to_json | from_json | community.general.json_query(field_query) }}"
+  vars:
+    field_query: "values[?name=='{{ item.value.name }}']"
+
+- name: Create custom field block
+  when: search | length == 0
+  block:
+    - name: Create Custom Field - "{{ item.key }}"
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/field"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: POST
+        body_format: json
+        force_basic_auth: true
+        status_code: 201
+        body:
+          id: "{{ item.value.id }}"
+          name: "{{ item.value.name }}"
+          description: "{{ item.value.description }}"
+          type: "{{ item.value.type }}"
+      register: field
+      changed_when: field.status == 201
+
+    # https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/field-createCustomField
+    # 201 = Returned if custom field was created.
+    # 400 = Returned if the input is invalid (e.g. invalid values).
+    # 500 = Returned if exception occured during custom field creation.
+    - name: Show field success
+      ansible.builtin.debug:
+        var: field.json
+      when: field.status == 201

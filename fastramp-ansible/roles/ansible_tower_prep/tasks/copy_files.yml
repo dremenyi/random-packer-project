@@ -1,0 +1,49 @@
+- name: Copy ansible.cfg file
+  ansible.builtin.copy:
+    src: ansible.cfg
+    dest: /tmp/twrinst/ansible.cfg
+    force: true
+    mode: '0644'
+
+- name: Copy RootCA cert
+  ansible.builtin.copy:
+    content: "{{ rootca_cert }}"
+    dest: /tmp/twrinst/rootca.crt
+    force: true
+    mode: '0644'
+
+- name: Copy Tower cert
+  ansible.builtin.copy:
+    content: "{{ tower_cert }}"
+    dest: /tmp/twrinst/tower.cert
+    force: true
+    mode: '0644'
+
+- name: Copy Tower cert key
+  ansible.builtin.copy:
+    content: "{{ tower_cert_key }}"
+    dest: /tmp/twrinst/tower.key
+    force: true
+    mode: '0644'
+
+- name: Deploy inventory file from template
+  ansible.builtin.template:
+    src: inventory.j2
+    dest: /tmp/twrinst/inventory
+    force: true
+    mode: '0644'
+
+- name: Generate random string ansible-vault.pass
+  ansible.builtin.copy:
+    content: "{{ lookup('community.general.random_string', base64=True, length=2048) }}"
+    dest: /tmp/twrinst/ansible-vault.pass
+    force: true
+    mode: "0600"
+
+- name: Deploy group_vars/all from template
+  ansible.builtin.template:
+    src: all.j2
+    dest: /tmp/twrinst/group_vars/all
+    force: true
+    mode: '0644'
+  no_log: true # Masking sensitive values

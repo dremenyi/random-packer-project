@@ -1,0 +1,25 @@
+---
+- name: reconfigure gitlab
+  command: /usr/bin/gitlab-ctl reconfigure
+  register: gitlab_reconfigure
+  become: true
+  delay: 60
+  retries: 2
+  until: gitlab_reconfigure is not failed  # Retry is added due to failures on first run.
+
+- name: reload systemctl daemon
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: rhel update ca trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true
+
+- name: ubuntu update ca trust
+  ansible.builtin.command: update-ca-certificates
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true

@@ -1,0 +1,15 @@
+---
+# Global
+tower_api_url: "https://tower1.{{ ansible_domain }}"
+
+# Install Cleanup
+install_s3_tower_collection: ansible-tower-3.8.6.tar.gz
+
+# LDAP
+ldap_user_search_pattern: "OU=Administrators,OU=Management,OU=All Users,{{ dom_disname }}"
+ldap_group_search_pattern: "CN=AnsibleAdmins,OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+ldap_required_group_pattern: "CN=AnsibleAdmins,OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+ldap_super_user_group_pattern: "CN=AnsibleAdmins,OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+
+# Logging
+splunk_api_url: "https://splunkhf1.{{ ansible_domain }}:8089"

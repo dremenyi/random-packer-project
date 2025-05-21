@@ -1,0 +1,12 @@
+[tcp://1514]
+connection_host = dns
+index = cisco
+sourcetype = cisco:asa
+
+[SSL]
+requireClientCert = false
+serverCert = /opt/splunk/etc/auth/certs/server_unenc.pem
+sslVersions = tls1.2
+sslVersionsForClient = tls1.2
+cipherSuite = {{ cipher_suite }}
+ecdhCurves = {{ ecdh_curves }}

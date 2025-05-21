@@ -1,0 +1,73 @@
+- name: Create private key for new certificate on server_1
+  community.crypto.openssl_privatekey:
+    path: /tmp/certificate.key
+    passphrase: "{{ secret_ca_passphrase }}"
+    cipher: auto
+    format: pkcs8
+
+- name: Convert private key to PKCS8 format without passphrase
+  community.crypto.openssl_privatekey_convert:
+    src_path: /tmp/certificate.key
+    src_passphrase: "{{ secret_ca_passphrase }}"
+    dest_path: /tmp/certificate_unenc.key
+    format: pkcs8
+
+- name: Create certificate signing request (CSR) for new certificate
+  community.crypto.openssl_csr_pipe:
+    privatekey_path: /tmp/certificate.key
+    privatekey_passphrase: "{{ secret_ca_passphrase }}"
+    common_name: '*'
+    country_name: US
+    organizational_unit_name: IT
+    subject_alt_name: "{{ subject_alt_name }}"
+    extended_key_usage:
+      - clientAuth
+      - serverAuth
+  register: csr
+
+- name: Sign certificate with our CA
+  community.crypto.x509_certificate_pipe:
+    csr_content: "{{ csr.csr }}"
+    provider: ownca
+    ownca_path: /tmp/ca-certificate.pem
+    ownca_privatekey_path: /tmp/ca-certificate.key
+    ownca_privatekey_passphrase: "{{ secret_ca_passphrase }}"
+    ownca_not_after: +365d  # valid for one year
+    ownca_not_before: "-1d"  # valid since yesterday
+  register: certificate
+
+- name: Write certificate file
+  copy:
+    dest: /tmp/certificate.pem
+    content: "{{ certificate.certificate }}"
+
+- name: Slurp Private Key
+  ansible.builtin.slurp:
+    src: /tmp/certificate.key
+  register: private_key
+
+- name: Slurp Unencrypted Private Key
+  ansible.builtin.slurp:
+    src: /tmp/certificate_unenc.key
+  register: private_key_unenc
+
+- name: Slurp CA Certificate
+  ansible.builtin.slurp:
+    src: /tmp/ca-certificate.pem
+  register: ca_certificate
+
+- name: Print CA Certificate
+  debug:
+    msg: "{{ (ca_certificate['content'] | b64decode).split('\n') }}"
+
+- name: Print Private Key
+  debug:
+    msg: "{{ (private_key['content'] | b64decode).split('\n') }}"
+
+- name: Print Unencrypted Private Key
+  debug:
+    msg: "{{ (private_key_unenc['content'] | b64decode).split('\n') }}"
+
+- name: Print Server Certificate
+  debug:
+    msg: "{{ (certificate.certificate).split('\n') }}"

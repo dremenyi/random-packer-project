@@ -1,0 +1,61 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+#- name: Create CNAME record for ALB
+#  community.windows.win_dns_record:
+#    name: "gitlab"
+#    type: "CNAME"
+#    value: "{{ alb_hostname }}"
+#    zone: "{{ ansible_domain }}"
+#  delegate_to: dc1
+#  run_once: true
+#  vars:
+#    ansible_user: "svc_ansible_da"
+#    ansible_password: "{{ hostvars['ansible1']['svc_ansible_da_password'] }}"
+
+- name: Configure LDAP
+  ansible.builtin.include_tasks: configure_ldap.yml
+
+- name: Check if GitLab is already installed.
+  ansible.builtin.stat: 
+    path: /usr/bin/gitlab-ctl
+  register: gitlab_file
+
+- name: Install Gitlab
+  ansible.builtin.include_tasks: install_gitlab.yml
+  when: not gitlab_file.stat.exists
+
+- name: Copy TLS Certs
+  ansible.builtin.include_tasks: copy_tls_certs.yml
+
+- name: Setup RDS Postgres
+  ansible.builtin.include_tasks: setup_rds_postgres.yml
+  when: 
+    - ansible_system_vendor == 'Amazon EC2'
+    - inventory_hostname == ansible_play_hosts_all[0] # This construct is used because run_once: true will not work with serial: 1
+
+- name: Bootstrap Config Gitlab
+  ansible.builtin.include_tasks: bootstrap_config_gitlab.yml
+
+- name: Backup weekly to Cloud Object Store
+  ansible.builtin.cron:
+    name: "gitlab backup"
+    minute: "0"
+    hour: "23"
+    weekday: "6"
+    user: root
+    job: "/usr/bin/gitlab-rake gitlab:backup:create"
+  become: true

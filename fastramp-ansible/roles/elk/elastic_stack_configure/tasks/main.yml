@@ -1,0 +1,52 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set default elasticsearchdata list to empty array
+  ansible.builtin.set_fact:
+    elasticsearchdata_list: []
+
+- name: Format elasticsearchdata item and add to list
+  ansible.builtin.set_fact:
+    elasticsearchdata_list: '{{ elasticsearchdata_list + [ ''"https://'' ~ item ~ ''.'' ~ ansible_domain ~ '':9200"'' ] }}'
+  loop: "{{ query('inventory_hostnames', 'data') }}"
+
+- name: Join elasticsearchdata list to string
+  ansible.builtin.set_fact:
+    elasticsearchdata_string: "{{ elasticsearchdata_list | join(',') }}"
+
+- name: Create Agent Policies
+  ansible.builtin.include_tasks: api_agent_policies.yml
+  loop: "{{ agent_policies }}"
+  when: item.enabled
+
+- name: Fetch Info
+  ansible.builtin.include_tasks: api_fetch_info.yml
+
+- name: Set AWS Partition
+  ansible.builtin.set_fact:
+    partition: "{% if is_gov == true %}aws-us-gov{% else %}aws{% endif %}"
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Store Enrollment Tokens
+  ansible.builtin.include_tasks: store_enrollment_tokens.yml
+  loop: "{{ agent_policies }}"
+  when: item.enabled
+
+# Note: An assumption is made that the fleet servers run on either ingest nodes or Logstash and would be configured as a remote listener for integrations (aws, Syslog)
+- name: Create Integrations
+  ansible.builtin.include_tasks: api_integrations.yml
+  loop: "{{ integrations }}"
+  when: item.enabled
+
+- name: Create Connectors
+  ansible.builtin.include_tasks: api_connectors.yml
+  loop: "{{ connectors }}"
+  when: item.enabled
+
+- name: Enable Stack monitoring
+  ansible.builtin.include_tasks: api_enable_monitoring.yml
+
+- name: Load Prebuilt Detection Rules
+  ansible.builtin.include_tasks: api_load_prebuilt_rules.yml

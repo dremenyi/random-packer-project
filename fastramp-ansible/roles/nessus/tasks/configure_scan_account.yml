@@ -1,0 +1,16 @@
+- name: DC1 tasks
+  delegate_to: dc1
+  block:
+    - name: Create svc_nessus scan account
+      microsoft.ad.user:
+        name: svc_nessus
+        firstname: Service
+        surname: Nessus
+        password_never_expires: true
+        path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+        password: "{{ svc_nessus_password }}"
+        update_password: when_changed
+        groups:
+          add:
+            - VulnScan
+            - LinuxAdmins

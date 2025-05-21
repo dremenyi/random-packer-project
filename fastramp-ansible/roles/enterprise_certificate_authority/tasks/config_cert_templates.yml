@@ -1,0 +1,144 @@
+- name: Create App Directory
+  ansible.windows.win_file:
+    path: "{{ app_dir }}"
+    state: directory
+
+- name: Copy Certificate Templates JSON
+  ansible.windows.win_copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    recurse: false
+  loop:
+    - { src: "ldaps-template.json", dest: "{{ app_dir }}ldaps.json" }
+    - { src: "multipurpose.json", dest: "{{ app_dir }}multipurpose.json" }
+    - { src: "rds.json", dest: "{{ app_dir }}rds.json" }
+
+# Note: The ADCSTemplate module author didn't make a Get-ADCSTemplateACL command or expose any other verbose output, so this can't be made truly idempotent.
+# The command does not throw errors if run repeatedly however.
+- name: Disable Default templates
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory, ADCSTemplate
+
+      Set-ADCSTemplateACL -DisplayName "{{ item.display_name }}" -Type Deny -Identity "{{ netbios }}\Domain Controllers", `
+      "ENTERPRISE DOMAIN CONTROLLERS" -{{ item.enroll }} -Server "dc1"
+    error_action: stop
+  register: disable_default_template
+  vars:
+    ansible_become: true
+    ansible_become_method: runas
+    ansible_become_user: "svc_ansible_da@{{ ansible_domain }}"
+    ansible_become_password: "{{ svc_ansible_da_password }}"
+  loop:
+    - { display_name: Kerberos Authentication, enroll: Autoenroll }
+    - { display_name: Domain Controller Authentication, enroll: Autoenroll }
+    - { display_name: Domain Controller, enroll: Enroll }
+    - { display_name: Directory Email Replication, enroll: Autoenroll }
+
+# Note: The ADCSTemplate modules requires ActiveDirectory to be loaded because it uses some native cmdlets from that.
+# The commands also load the AD PSDrive.  While the cmdlets allow you to specify a Server, it uses the "AD" drive directly,
+# which may not be pointing to the same domain controller.  To avoid replication latency issues, I am removing the PSDrive and then
+# adding it again while specifying a specific domain controller.
+- name: Create Cert Template LDAPS
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory, ADCSTemplate
+
+      Remove-PSDrive -Name "AD"
+      New-PSDrive -Name AD -PSProvider ActiveDirectory -Server "dc1.{{ ansible_domain }}" -Scope Global -root "//RootDSE/"
+      If (!(Get-CATemplate | Where-Object { $_.Name -eq "ldaps"})) {
+        New-ADCSTemplate -DisplayName "ldaps" -Identity "{{ netbios }}\Domain Controllers","ENTERPRISE DOMAIN CONTROLLERS" `
+        -JSON (Get-Content "{{ app_dir }}ldaps.json" -Raw) -Publish -AutoEnroll -Server "dc1"
+        Set-ADCSTemplateACL -DisplayName "ldaps" -Type Deny -Identity "{{ netbios }}\Domain Computers" -Enroll -AutoEnroll -Server "dc1"
+        $Ansible.changed = $true
+      }
+      else {
+        $Ansible.changed = $false
+      }
+    error_action: stop
+  vars:
+    ansible_become: true
+    ansible_become_method: runas
+    ansible_become_user: "svc_ansible_da@{{ ansible_domain }}"
+    ansible_become_password: "{{ svc_ansible_da_password }}"
+
+- name: Create Cert Template MultiPurpose
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory, ADCSTemplate
+
+      Remove-PSDrive -Name "AD"
+      New-PSDrive -Name AD -PSProvider ActiveDirectory -Server "dc1.{{ ansible_domain }}" -Scope Global -root "//RootDSE/"
+      If (!(Get-CATemplate | Where-Object { $_.Name -eq "multipurpose"})) {
+        New-ADCSTemplate -DisplayName "multipurpose" -Identity "{{ netbios }}\AnsibleService","{{ netbios }}\WindowsAdmins" `
+        -JSON (Get-Content "{{ app_dir }}multipurpose.json" -Raw) -Publish -Server "dc1"
+        $Ansible.changed = $true
+      }
+      else {
+        $Ansible.changed = $false
+      }
+    error_action: stop
+  vars:
+    ansible_become: true
+    ansible_become_method: runas
+    ansible_become_user: "svc_ansible_da@{{ ansible_domain }}"
+    ansible_become_password: "{{ svc_ansible_da_password }}"
+
+- name: Create Cert Template RDS
+  ansible.windows.win_powershell:
+    script: |
+      Import-Module -Name ActiveDirectory, ADCSTemplate
+
+      Remove-PSDrive -Name "AD"
+      New-PSDrive -Name AD -PSProvider ActiveDirectory -Server "dc1.{{ ansible_domain }}" -Scope Global -root "//RootDSE/"
+      If (!(Get-CATemplate | Where-Object { $_.Name -eq "rds"})) {
+        New-ADCSTemplate -DisplayName "rds" -Identity "{{ netbios }}\Domain Computers","{{ netbios }}\Domain Controllers" `
+        -JSON (Get-Content "{{ app_dir }}rds.json" -Raw) -Publish -AutoEnroll -Server "dc1"
+        $Ansible.changed = $true
+      }
+      else {
+        $Ansible.changed = $false
+      }
+    error_action: stop
+  vars:
+    ansible_become: true
+    ansible_become_method: runas
+    ansible_become_user: "svc_ansible_da@{{ ansible_domain }}"
+    ansible_become_password: "{{ svc_ansible_da_password }}"
+
+- name: Copy Certificate Request script for manual cert requests
+  ansible.windows.win_copy:
+    src: cert-req.ps1
+    dest: "{{ app_dir }}Request-Certificate.ps1"
+    recurse: false
+
+# Note: This is to ensure the LDAPS template and Root CA Certificate is deployed to the domain controllers.
+# We're forcing it here to ensure later tasks that depend on HTTPS certificates being bound to port 636 don't fail.
+- name: Pulse autoenroll Certificates
+  ansible.windows.win_command:
+    cmd: certutil.exe -pulse
+  register: certutil_pulse
+  changed_when: '"command completed successfully" in certutil_pulse.stdout'
+  delegate_to: "{{ item }}"
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['ca1']['svc_ansible_da_password'] }}"
+  with_items:
+    - ca1
+    - dc1
+    - dc2
+
+# Force RDP certificate update immediately
+- name: Force GPUpdate
+  ansible.windows.win_command:
+    cmd: gpupdate.exe /force
+  register: gpupdate
+  changed_when: gpupdate.stdout_lines | select("match", ".*Computer Policy update has completed successfully.*")
+  delegate_to: "{{ item }}"
+  vars:
+    ansible_user: "svc_ansible_da"
+    ansible_password: "{{ hostvars['ca1']['svc_ansible_da_password'] }}"
+  with_items:
+    - ca1
+    - dc1
+    - dc2

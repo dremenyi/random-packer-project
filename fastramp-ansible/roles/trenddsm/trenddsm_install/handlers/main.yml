@@ -1,0 +1,16 @@
+- name: Update CA Trust
+  ansible.builtin.command: update-ca-trust
+  register: update_ca_trust
+  changed_when: update_ca_trust.rc == 0
+  become: true
+
+- name: Reload systemctl
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
+
+- name: Restart DSM
+  ansible.builtin.service:
+    name: dsm_s
+    state: restarted
+  become: true

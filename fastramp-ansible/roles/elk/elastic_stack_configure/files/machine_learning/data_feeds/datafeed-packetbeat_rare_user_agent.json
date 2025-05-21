@@ -1,0 +1,41 @@
+{
+    "datafeed_id" : "datafeed-packetbeat_rare_user_agent",
+    "job_id" : "packetbeat_rare_user_agent",
+    "query_delay" : "76273ms",
+    "indices" : [
+      "packetbeat-*"
+    ],
+    "query" : {
+      "bool" : {
+        "filter" : [
+          {
+            "term" : {
+              "event.dataset" : "dns"
+            }
+          },
+          {
+            "term" : {
+              "agent.type" : "packetbeat"
+            }
+          }
+        ],
+        "must_not" : [
+          {
+            "wildcard" : {
+              "user_agent.original" : {
+                "value" : "Mozilla*"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "scroll_size" : 1000,
+    "chunking_config" : {
+      "mode" : "auto"
+    },
+    "delayed_data_check_config" : {
+      "enabled" : true
+    },
+    "max_empty_searches" : 10
+  }

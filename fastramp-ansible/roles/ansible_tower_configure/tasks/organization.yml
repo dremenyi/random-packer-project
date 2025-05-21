@@ -1,0 +1,7 @@
+- name: Create tower organization
+  ansible.tower.tower_organization:
+    name: "{{ tower_org_name }}"
+    description: "Production Organization"
+    state: present
+    tower_host: "{{ tower_api_url }}"
+    tower_oauthtoken: "{{ tower_token }}"

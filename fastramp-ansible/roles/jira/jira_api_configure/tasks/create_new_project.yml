@@ -1,0 +1,8 @@
+- name: Create Project
+  ansible.builtin.include_tasks: create_project.yml
+
+- name: Create Issue Type Scheme
+  ansible.builtin.include_tasks: create_issue_type_scheme.yml
+
+- name: Create Workflow Scheme
+  ansible.builtin.include_tasks: create_workflow_scheme.yml

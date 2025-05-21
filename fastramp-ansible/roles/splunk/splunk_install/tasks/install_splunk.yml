@@ -1,0 +1,84 @@
+- name: Download Splunk installer
+  ansible.builtin.get_url:
+    url: "{{ splunk_package_url }}"
+    dest: "/tmp/{{ splunk_installer_name }}"
+    force: true
+    mode: "0755"
+
+- name: Check Splunk installer file hash
+  ansible.builtin.stat:
+    path: "/tmp/{{ splunk_installer_name }}"
+    get_checksum: true
+    checksum_algorithm: sha512
+  register: splunk_downloaded_installer_file
+
+- name: Assert that hashes match
+  ansible.builtin.assert:
+    that:
+      - splunk_downloaded_installer_file.stat.checksum == splunk_installer_hash
+    fail_msg: "Hash does not match.  The actual file hash is {{ splunk_downloaded_installer_file.stat.checksum }}, the expected hash is {{ splunk_installer_hash }}"
+    success_msg: "Hashes match, continuing"
+
+- name: RHEL - Run Splunk Installer
+  ansible.builtin.command: "/usr/bin/rpm -i --prefix=/opt /tmp/{{ splunk_installer_name }}"
+  args:
+    creates: /opt/splunk
+  register: splunk_installer
+  become: true
+  changed_when: splunk_installer.stdout_lines | select("match", ".*complete.*")
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Run Splunk Installer
+  ansible.builtin.apt:
+    deb: "/tmp/{{ splunk_installer_name }}"
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Remove Splunk installer
+  ansible.builtin.file:
+    path: "/tmp/{{ splunk_installer_name }}"
+    state: absent
+
+- name: Configure FACL
+  ansible.builtin.include_tasks: configure_facl.yml
+
+- name: Configure THP
+  ansible.builtin.include_tasks: configure_thp.yml
+  tags:
+    - molecule-notest
+
+- name: Configure Deployment Client
+  ansible.builtin.include_tasks: configure_deploymentclient.yml
+
+- name: Configure User Seed
+  ansible.builtin.include_tasks: configure_user-seed.yml
+
+- name: Include configure default authentication.conf for AD authentication and admin role mapping
+  ansible.builtin.include_tasks: configure_authentication.yml
+  tags:
+    - molecule-notest
+
+- name: Include accept license task
+  ansible.builtin.include_tasks: splunk_license_accept.yml
+
+- name: Set FIPS
+  ansible.builtin.include_tasks: set_fips.yml
+  tags:
+    - molecule-notest
+
+- name: Include post-install tasks
+  ansible.builtin.include_tasks: post_install.yml
+
+- name: Enable splunk boot-start via systemd
+  ansible.builtin.command: "/opt/splunk/bin/splunk enable boot-start -user splunk -systemd-managed 1 -systemd-unit-file-name Splunkd -create-polkit-rules 1 --answer-yes --auto-ports --no-prompt --accept-license"
+  become: true
+  notify:
+    - reload systemctl daemon
+    - start splunk
+  register: enable_boot_start
+  changed_when: enable_boot_start.stdout_lines | select("match", ".*Configured as systemd managed service.*")
+
+# - name: Debug enable_boot_start
+#   ansible.builtin.debug:
+#     var: enable_boot_start

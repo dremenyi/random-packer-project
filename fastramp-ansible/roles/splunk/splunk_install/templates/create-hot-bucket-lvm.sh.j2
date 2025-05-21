@@ -1,0 +1,45 @@
+#!/bin/bash
+
+if [[ -z "$(/usr/sbin/lvs | grep cache-lv)" ]]
+    then
+        echo "cache-lv logical volume not found, creating."
+        free_disks=$(lsblk -o NAME,MODEL | grep "Amazon EC2 NVMe Instance Storage" | cut -d " " -f 1 | awk -F: '{ printf "/dev/" $1 "\n" }')
+        free_disk_num=$(echo "$free_disks" | wc -l)
+        echo "The available disks are $free_disks"
+        echo "The number of free disks is $free_disk_num"
+
+        echo "Creating Physical Volumes on free disks"
+        /usr/sbin/pvcreate $free_disks
+
+        echo "Creating Volume Group"
+        /usr/sbin/vgcreate instancevg $free_disks
+
+        echo "Creating Logical Volume"
+        /usr/sbin/lvcreate --type raid0 -l 100%FREE --stripes $free_disk_num --stripesize 4 -n cache-lv instancevg
+
+        echo "Creating XFS Filesystem"
+        /usr/sbin/mkfs.xfs -K /dev/instancevg/cache-lv
+
+        echo "Mounting Volume"
+        mount /dev/mapper/instancevg-cache--lv /cache
+
+        echo "Changing owner of /cache"
+        chown -R splunk:splunk /cache
+
+        echo "Starting Splunk service"
+        systemctl start Splunkd
+
+        echo "Script completed!"
+    else
+        echo "cache-lv logical volume found, checking mount"
+        if [[ -z "$(mount | grep /cache)" ]]
+            then
+                echo "cache-lv found, but not mounted, mounting volume."
+                mount /dev/mapper/instancevg-cache--lv /cache
+
+                echo "Starting Splunk service"
+                systemctl start Splunkd
+
+                echo "Script completed!"
+            fi
+    fi

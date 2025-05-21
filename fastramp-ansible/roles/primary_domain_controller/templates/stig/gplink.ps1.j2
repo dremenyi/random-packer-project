@@ -1,0 +1,28 @@
+Import-Module -Name GroupPolicy
+
+# Domain Controller Policies
+{% if install_authlite | bool %}
+New-GPLink -Name '{{ authlite_dc_xml.results[7].matches[0].values() | first }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endif %}
+{% for override in override_xml %}
+New-GPLink -Name '{{ override_xml.results[7].matches[0].values() | first }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+New-GPLink -Name '{{ dc_xml.results[7].matches[0].values() | first }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% for base in base_gpo_xml_list %}
+New-GPLink -Name '{{ base.GPODisplayName }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+
+# Server Policies
+{% if install_authlite | bool %}
+New-GPLink -Name '{{ authlite_computer_xml.results[7].matches[0].values() | first }}' -Target 'OU=Domain Controllers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endif %}
+{% for override in override_xml %}
+New-GPLink -Name '{{ override_xml.results[7].matches[0].values() | first }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+New-GPLink -Name '{{ server_xml.results[7].matches[0].values() | first }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% for base in base_gpo_xml_list %}
+New-GPLink -Name '{{ base.GPODisplayName }}' -Target 'OU=Servers,{{ dom_disname }}' -LinkEnabled Yes -Verbose
+{% endfor %}
+
+# User Policies
+New-GPLink -Name '{{ user_xml.results[7].matches[0].values() | first }}' -Target 'OU=All Users,{{ dom_disname }}' -LinkEnabled Yes -Verbose

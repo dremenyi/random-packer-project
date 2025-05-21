@@ -1,0 +1,68 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Set platform/version specific variables
+  ansible.builtin.include_vars: "{{ rolename_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+  vars:
+    rolename_vars_file: "{{ role_path }}/vars/{{ item }}"
+  when: rolename_vars_file is file
+
+- name: Create and Mount /opt
+  ansible.builtin.include_tasks: create_and_mount_disk.yml
+  when: ansible_mounts | selectattr('mount', 'equalto', '/opt') | list | length == 0 # Skip if /opt mount already exists
+  tags:
+    - molecule-notest
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install Splunk
+  ansible.builtin.include_tasks: install_splunk.yml
+  when: '"Splunkd.service" not in ansible_facts.services'
+
+- name: Configure License
+  ansible.builtin.include_tasks: configure_license.yml
+
+- name: Copy TLS Certs
+  ansible.builtin.include_tasks: copy_tls_certs.yml
+
+- name: Deploy Common Conf
+  ansible.builtin.include_tasks: deploy_common_conf.yml
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+### Cluster Manager ###
+- name: Cluster Manager
+  when: "'clustermanager' in group_names"
+  block:
+    - name: Configure Distributed Monitoring Console
+      ansible.builtin.include_tasks: configure_dmc.yml
+
+    - name: Configure Cluster Manager
+      ansible.builtin.include_tasks: configure_idxc_manager.yml
+
+### Indexer ###
+- name: Indexer
+  when: "'indexer' in group_names"
+  block:
+    - name: Configure Indexer Hot Bucket
+      ansible.builtin.include_tasks: configure_idx_hot_bucket.yml
+      when: ansible_mounts | selectattr('mount', 'equalto', '/cache') | list | length == 0 # Skip if /cache mount already exists
+      tags:
+        - molecule-notest
+
+    - name: Configure Indexer Member
+      ansible.builtin.include_tasks: configure_idxc_member.yml
+
+### Search Head ###
+- name: Configure Search Heads
+  ansible.builtin.include_tasks: configure_idxc_sh.yml
+  when: "'search' in group_names"

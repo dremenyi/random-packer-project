@@ -1,0 +1,35 @@
+- name: Get Available Integration Packages
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/fleet/epm/packages"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: GET
+    force_basic_auth: true
+    status_code: 200
+  register: get_integration_packages
+  changed_when: false
+
+- name: Get Agent Policies
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/fleet/agent_policies"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: GET
+    force_basic_auth: true
+    status_code: 200
+  register: get_agent_policies
+  changed_when: false
+
+- name: Get Enrollment Tokens
+  ansible.builtin.uri:
+    url: "{{ kibana_api_url }}/api/fleet/enrollment-api-keys"
+    user: "elastic"
+    url_password: "{{ elastic_password }}"
+    method: GET
+    force_basic_auth: true
+    status_code: 200
+    headers:
+      elastic-api-version: 1
+  register: enrollment_tokens
+  changed_when: false
+  no_log: false

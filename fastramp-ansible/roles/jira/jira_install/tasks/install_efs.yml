@@ -1,0 +1,107 @@
+- name: RHEL - Install Required Packages
+  ansible.builtin.yum:
+    name:
+      - git
+      - make
+      - rpm-build
+      - stunnel
+    state: present
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Install Required Packages
+  ansible.builtin.apt:
+    name:
+      - git
+      - binutils
+      - stunnel4
+    state: present
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Clone EFS Utils
+  ansible.builtin.git:
+    repo: https://github.com/aws/efs-utils
+    dest: /tmp/efs-utils
+    clone: true
+    update: true
+
+- name: RHEL - Build the RPM
+  community.general.make:
+    chdir: /tmp/efs-utils
+    target: rpm
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Build the DEB
+  ansible.builtin.command:
+    chdir: /tmp/efs-utils
+    cmd: ./build-deb.sh
+  become: true
+  register: build_deb
+  changed_when: build_deb.rc == 0
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: Ubuntu - Debug build_deb
+  ansible.builtin.debug:
+    var: build_deb
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: RHEL - Find RPM
+  ansible.builtin.find:
+    paths: /tmp/efs-utils/build
+    patterns: "amazon-efs-utils*.rpm"
+  register: find_rpm
+  become: true
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Find DEB
+  ansible.builtin.find:
+    paths: /tmp/efs-utils/build
+    patterns: "amazon-efs-utils*.deb"
+  register: find_deb
+  become: true
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+- name: RHEL - Install EFS utils
+  ansible.builtin.yum:
+    name: "{{ item.path }}"
+    state: present
+    disable_gpg_check: true # We built it, so there is no signature
+  become: true
+  loop: "{{ find_rpm.files }}"
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Ubuntu - Install EFS utils
+  ansible.builtin.apt:
+    deb: "{{ item.path }}"
+    state: present
+    allow_unauthenticated: true # We built it, so there is no signature
+  become: true
+  loop: "{{ find_deb.files }}"
+  when: ansible_facts['distribution'] == 'Ubuntu'
+
+# https://github.com/aws/efs-utils#enabling-fips-mode
+- name: Enable FIPS Mode for EFS Utils
+  ansible.builtin.lineinfile:
+    path: /etc/amazon/efs/efs-utils.conf
+    regexp: "^fips_mode_enabled"
+    line: fips_mode_enabled = true
+  become: true
+  when: # Note: Remove this conditional when 22.04 gets a FIPS validated kernel
+    - not (ansible_facts['distribution'] == 'Ubuntu' and ansible_facts['distribution_version'] == '22.04')
+
+- name: Mount EFS
+  ansible.posix.mount:
+    path: /sharedhome
+    src: "{{ efs_dns_name }}:/"
+    fstype: efs
+    opts: _netdev,noresvport,tls,iam,hard,rsize=1048576,wsize=1048576,timeo=600,retrans=2
+    state: mounted
+  become: true
+
+- name: Remove efs-utils folder
+  ansible.builtin.file:
+    path: /tmp/efs-utils
+    state: absent
+  become: true

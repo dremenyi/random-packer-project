@@ -1,0 +1,36 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+# Note: Will delegate_to: dc1 to create DNS CNAME record
+- name: Cleanup Install files and install prereqs
+  ansible.builtin.include_tasks: install_cleanup.yml
+
+- name: Create API token from Ansible Tower
+  ansible.builtin.include_tasks: create_api_token.yml
+
+- name: Set license from manifest file
+  ansible.builtin.include_tasks: license.yml
+
+# Note: Will delegate_to: dc1 to create LDAP bind account
+- name: Configure LDAP
+  ansible.builtin.include_tasks: ldap.yml
+
+- name: Create Organization
+  ansible.builtin.include_tasks: organization.yml
+
+- name: Create Credentials
+  ansible.builtin.include_tasks: credentials.yml
+
+- name: Create AWS Inventory
+  ansible.builtin.include_tasks: aws_aap_inventory.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Create SQS Cleanup cron job
+  ansible.builtin.include_tasks: sqs_cleanup.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Configure Logging
+  ansible.builtin.include_tasks: logging.yml
+  when: configure_log_ingest

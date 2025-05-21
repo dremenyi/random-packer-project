@@ -1,0 +1,21 @@
+splunkds1: "splunkds1.{{ ansible_domain }}"
+
+# https://www.splunk.com/en_us/download/universal-forwarder.html
+# Append ".sha512" to the full download url to get the hash.
+splunk_package_version: 9.1.1
+build_id: 64e843ea36b1
+splunk_win_file_name: "splunkforwarder-{{ splunk_package_version }}-{{ build_id }}-x64-release.msi"
+splunk_win_download_url: "https://download.splunk.com/products/universalforwarder/releases/{{ splunk_package_version }}/windows/{{ splunk_win_file_name }}"
+splunk_installer_hash: 98c427e078ac12bcbf0874fe4da7a2171f2bfce468bab0040ce5702ba7f77b9f47482507fe2329ea6ab2c1a6c92dc826ed1b7e1f0998b0bb193541db5164fb6f
+
+splunk_downloadpath: "C:\\Windows\\Temp"
+splunk_home: "C:\\Program Files\\SplunkUniversalForwarder"
+censored: true # Hide secrets in output while run ansible
+
+cipher_suite: ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256
+ecdh_curves: prime256v1, secp384r1, secp521r1
+
+## Grant splunk user permissions to app logs
+win_apps_log:
+  - path: "C:\\ProgramData\\Tenable\\Nessus\\nessus\\logs\\"
+    name: nessus

@@ -1,0 +1,90 @@
+---
+- name: Debug loop item
+  ansible.builtin.debug:
+    var: item
+
+# Look for existing issue types
+- name: Issue Type Search
+  ansible.builtin.uri:
+    url: "{{ jira_api_url }}/issuetype"
+    user: "{{ jira_user_name }}"
+    url_password: "{{ jira_password }}"
+    method: GET
+    body_format: json
+    force_basic_auth: true
+    status_code: 200
+  register: issuetypes
+
+- name: Check for existing Issue Type
+  ansible.builtin.set_fact:
+    search_issuetype: "{{ issuetypes | to_json | from_json | community.general.json_query(field_query) }}"
+  vars:
+    field_query: "json[?name=='{{ item.key }}'].id"
+
+# Create issue types, if they don't already exist.
+- name: Create Issue Type BLOCK
+  when: search_issuetype | length == 0
+  block:
+    - name: Create Issue Type - {{ item.key }}
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/issuetype"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: POST
+        body_format: json
+        force_basic_auth: true
+        status_code: 201, 409
+        body:
+          name: "{{ item.key }}"
+          description: "{{ item.value.description }}"
+          type: "{{ item.value.type }}"
+      register: issue_type
+      changed_when: issue_type.status == 201
+
+    # https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/issuetype-createIssueType
+    # 201 = Returned if the issue type was successfully created.
+    # 400 = Returned if the request is invalid. This happens when the name is invalid or issue type is subtask on instance which has subtasks disabled.
+    # 401 = Returned if the calling user is not authenticated.
+    # 403 = Returned if the calling user does not have permission to administer Jira.
+    # 409 = Returned if there already exists an issue type with the specified name.
+    - name: Show issue_type success
+      ansible.builtin.debug:
+        var: issue_type.json
+      when: issue_type.status == 201
+
+    - name: Show issue_type error
+      ansible.builtin.debug:
+        var: issue_type.json.errorMessages
+      when: issue_type.status != 201
+
+    - name: Configure Issue Type Icon
+      ansible.builtin.uri:
+        url: "{{ jira_api_url }}/issuetype/{{ issue_type.json.id }}"
+        user: "{{ jira_user_name }}"
+        url_password: "{{ jira_password }}"
+        method: PUT
+        body_format: json
+        force_basic_auth: true
+        status_code: 200, 409
+        body:
+          avatarId: "{{ item.value.avatarid | int }}"
+      register: issue_type_change_icon
+      changed_when: issue_type_change_icon.status == 200
+
+    # https://docs.atlassian.com/software/jira/docs/api/REST/9.3.0/#api/2/issuetype-updateIssueType
+    # 200 = Returned if the issue type was successfully updated.
+    # 400 = Returned if the request is invalid. This happens when the name is invalid or issue type is subtask on instance which has subtasks disabled.
+    # 401 = Returned if the calling user is not authenticated.
+    # 403 = Returned if the calling user does not have permission to administer Jira.
+    # 404 = Returned if the issue type to update does not exist.
+    # 409 = Returned if there already exists an issue type with the specified name.
+    - name: Show issue_type_change_icon success
+      ansible.builtin.debug:
+        var: issue_type_change_icon.json
+      when: issue_type_change_icon.status == 200
+
+    - name: Show issue_type_change_icon error
+      ansible.builtin.debug:
+        var: issue_type_change_icon.json.errorMessages
+      when: issue_type_change_icon.status != 200
+# End Create Issue Type BLOCK

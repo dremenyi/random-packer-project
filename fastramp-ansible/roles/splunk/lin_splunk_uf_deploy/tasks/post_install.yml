@@ -1,0 +1,7 @@
+- name: Ensure correct ownership for /opt/splunkforwarder/etc
+  ansible.builtin.file:
+    path: /opt/splunkforwarder/etc
+    owner: "{{ splunk_user }}"
+    group: "{{ splunk_user }}"
+    recurse: true
+  become: true

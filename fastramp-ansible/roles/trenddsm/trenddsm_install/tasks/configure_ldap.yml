@@ -1,0 +1,81 @@
+- name: DC1 tasks
+  delegate_to: dc1
+  block:
+    - name: Create Read-Only account for LDAPS use
+      microsoft.ad.user:
+        name: svc_trenddsm
+        firstname: Service
+        surname: TrendDSM
+        password_never_expires: true
+        path: "OU=Service Accounts,OU=Management,OU=All Users,{{ dom_disname }}"
+        password: "{{ svc_trenddsm_password }}"
+        update_password: when_changed
+
+    - name: Create Trend AD Group
+      microsoft.ad.group:
+        name: "{{ item }}"
+        scope: global
+        path: "OU=Security Groups,OU=Management,OU=All Users,{{ dom_disname }}"
+      loop:
+        - TrendAdmins
+
+- name: Check for CA Cert in DSM folder
+  ansible.builtin.stat:
+    path: /opt/dsm/cacert.pem
+  register: check_cacert_dsm
+  become: true
+
+- name: Copy and Import CA Cert block
+  when: not check_cacert_dsm.stat.exists
+  block:
+    - name: Copy Root CA to dsm folder
+      ansible.builtin.copy:
+        content: "{{ rootca_cert }}"
+        dest: /opt/dsm/cacert.pem
+        mode: "0644"
+      become: true
+
+    - name: Check trusted certs
+      ansible.builtin.command: /opt/dsm/dsm_c -action listcerts
+      become: true
+      register: list_certs
+      changed_when: false
+
+    - name: Trust Root CA Certificate
+      ansible.builtin.command: /opt/dsm/dsm_c -action addcert -purpose SSL -cert /opt/dsm/cacert.pem
+      become: true
+      register: trust_ca_cert
+      changed_when: trust_ca_cert.stdout_lines | select("match", ".*Certificate added:.*")
+      when: not (list_certs.stdout_lines | select("match", ".*Root CA.*"))
+      notify: Restart DSM
+
+    - name: Debug trust_ca_cert
+      ansible.builtin.debug:
+        var: trust_ca_cert
+
+# Flush handlers to force DSM Restart
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Pause after restart
+  ansible.builtin.pause:
+    minutes: 1
+
+- name: AWS - Execute Selenium Python script to configure LDAP
+  ansible.builtin.command: >
+    xvfb-run -a --server-args="-screen 0 1920x1080x24" {{ python_binary }} files/aws/chrome_configure_ldap.py --url https://{{ inventory_hostname }}.{{ ansible_domain }}:4119 --dsmsecretspath {{ dsm_secrets_path }} --region {{ aws_region }}
+     --adsecretspath {{ ad_secrets_path }} --basedn "OU=All Users,{{ dom_disname }}" --domain {{ ansible_domain }} --endpointurl {{ ssm_endpoint }}
+  args:
+    chdir: "{{ role_path }}"
+  register: selenium_dsm_ldap_result
+  delegate_to: localhost
+  changed_when: selenium_dsm_ldap_result.stdout_lines | select("match", ".*Selenium trenddsm script completed.*")
+  delay: 60
+  retries: 1
+  until: selenium_dsm_ldap_result is not failed
+  when:
+    - ansible_system_vendor == 'Amazon EC2'
+
+- name: Debug selenium_dsm_ldap_result
+  ansible.builtin.debug:
+    var: selenium_dsm_ldap_result.stdout_lines

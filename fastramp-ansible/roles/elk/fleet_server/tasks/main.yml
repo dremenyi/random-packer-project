@@ -1,0 +1,46 @@
+---
+- name: Load AWS vars
+  ansible.builtin.include_vars: aws.yml
+  when: ansible_system_vendor == 'Amazon EC2'
+
+- name: Populate service facts
+  ansible.builtin.service_facts:
+
+- name: Install Elastic Agent
+  ansible.builtin.include_tasks: install.yml
+  when: '"elastic-agent.service" not in ansible_facts.services'
+
+- name: Set default elastic_home for elasticsearch hosts
+  ansible.builtin.set_fact:
+    elastic_home: /etc/elasticsearch
+  when: >
+    "'data' in group_names"
+    or "'ingest' in group_names"
+
+- name: Set default elastic_home for kibana hosts
+  ansible.builtin.set_fact:
+    elastic_home: /etc/kibana
+  when: "'kibanaserver' in group_names"
+
+- name: Check port 8220
+  ansible.builtin.wait_for:
+    port: 8220
+    timeout: 5
+  register: port_check
+  ignore_errors: true
+
+- name: Get RootCA thumbprint
+  community.crypto.x509_certificate_info:
+    path: "{{ elastic_home }}/certs/cacert.pem"
+  register: cacert_result
+  become: true
+
+- name: Configure Fleet
+  ansible.builtin.include_tasks: configure_fleet.yml
+  when: port_check is failed
+
+# Assume failure if the port is not open and listening
+- name: Check port 8220
+  ansible.builtin.wait_for:
+    port: 8220
+    timeout: 5
