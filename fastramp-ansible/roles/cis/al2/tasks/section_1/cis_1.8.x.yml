@@ -1,16 +1,25 @@
 ---
 
 - name: "1.8 | PATCH | Ensure updates, patches, and additional security software are installed"
-  package:
-      name: "*"
-      state: latest
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf update -y
+    elif command -v yum >/dev/null 2>&1; then
+      yum update -y
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: system_update
+  failed_when: system_update.rc != 0
+  changed_when: "'Nothing to do' not in system_update.stdout and 'No packages marked for update' not in system_update.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_1_8
+    - amazon2cis_rule_1_8
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_1.8
-      - skip_ansible_lint
+    - level1
+    - automated
+    - patch
+    - rule_1.8
+    - skip_ansible_lint

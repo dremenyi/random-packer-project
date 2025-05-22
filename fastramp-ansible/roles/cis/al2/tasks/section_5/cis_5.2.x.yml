@@ -1,17 +1,28 @@
 ---
 
 - name: "5.2.1 | PATCH | Ensure sudo is installed"
-  package:
-      name: sudo
-      state: present
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y sudo
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y sudo
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: sudo_install
+  failed_when: sudo_install.rc != 0
+  changed_when: "'Nothing to do' not in sudo_install.stdout and 'already installed' not in sudo_install.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_5_2_1
+    - amazon2cis_rule_5_2_1
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_5.2.1
-      - sudo
+    - level1
+    - automated
+    - patch
+    - rule_5.2.1
+    - sudo
 
 - name: "5.2.2 | PATCH | Ensure sudo commands use pty"
   lineinfile:

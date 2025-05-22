@@ -78,15 +78,24 @@
       - rule_1.5.3
 
 - name: "1.5.4 | PATCH | Ensure prelink is not installed"
-  package:
-      name: prelink
-      state: absent
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf remove -y prelink
+    elif command -v yum >/dev/null 2>&1; then
+      yum remove -y prelink
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: prelink_remove
+  failed_when: prelink_remove.rc != 0 and "No match for argument" not in prelink_remove.stderr and "No packages marked for removal" not in prelink_remove.stdout
+  changed_when: "'Nothing to do' not in prelink_remove.stdout and 'No packages marked for removal' not in prelink_remove.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_1_5_4
+    - amazon2cis_rule_1_5_4
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_1.5.4
+    - level1
+    - automated
+    - patch
+    - rule_1.5.4

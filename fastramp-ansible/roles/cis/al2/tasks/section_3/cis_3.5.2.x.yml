@@ -1,52 +1,79 @@
 ---
 
 - name: "3.5.2.1 | PATCH | Ensure nftables is installed"
-  package:
-      name: nftables
-      state: present
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y nftables
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y nftables
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: nftables_install
+  failed_when: nftables_install.rc != 0
+  changed_when: "'Nothing to do' not in nftables_install.stdout and 'already installed' not in nftables_install.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_3_5_2_1
+    - amazon2cis_rule_3_5_2_1
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_3.5.2.1
-      - firewall
-      - nftables
+    - level1
+    - automated
+    - patch
+    - rule_3.5.2.1
+    - firewall
+    - nftables
 
 - name: "3.5.2.2 | PATCH | Ensure firewalld is either not installed or masked with nftables"
-  package:
-      name: firewalld
-      state: absent
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf remove -y firewalld
+    elif command -v yum >/dev/null 2>&1; then
+      yum remove -y firewalld
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: firewalld_remove
+  failed_when: firewalld_remove.rc != 0 and "No match for argument" not in firewalld_remove.stderr and "No packages marked for removal" not in firewalld_remove.stdout
+  changed_when: "'Nothing to do' not in firewalld_remove.stdout and 'No packages marked for removal' not in firewalld_remove.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_3_5_2_2
+    - amazon2cis_rule_3_5_2_2
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_3.5.2.2
-      - firewall
-      - nftables
+    - level1
+    - automated
+    - patch
+    - rule_3.5.2.2
+    - firewall
+    - nftables
 
 - name: "3.5.2.3 | PATCH | Ensure iptables-services package is not installed"
-  package:
-      name: iptables-services
-      state: absent
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf remove -y iptables-services
+    elif command -v yum >/dev/null 2>&1; then
+      yum remove -y iptables-services
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: iptables_services_remove
+  failed_when: iptables_services_remove.rc != 0 and "No match for argument" not in iptables_services_remove.stderr and "No packages marked for removal" not in iptables_services_remove.stdout
+  changed_when: "'Nothing to do' not in iptables_services_remove.stdout and 'No packages marked for removal' not in iptables_services_remove.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_3_5_2_3
+    - amazon2cis_rule_3_5_2_3
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_3.5.2.3
-      - firewall
-      - nftables
+    - level1
+    - automated
+    - patch
+    - rule_3.5.2.3
+    - firewall
+    - nftables
 
 - name: "3.5.2.4 | PATCH | Ensure iptables are flushed"
   block:

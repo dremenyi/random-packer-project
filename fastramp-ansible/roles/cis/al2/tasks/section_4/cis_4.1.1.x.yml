@@ -1,19 +1,28 @@
 ---
 - name: "4.1.1.1 | PATCH | Ensure auditd is installed"
-  package:
-      name: ['audit', 'audit-libs']
-      state: present
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y audit audit-libs
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y audit audit-libs
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: auditd_install
+  failed_when: auditd_install.rc != 0
+  changed_when: "'Nothing to do' not in auditd_install.stdout and 'already installed' not in auditd_install.stdout"
+  args:
+    executable: /bin/bash
   notify: restart auditd
-  vars:
-      ansible_python_interpreter: /bin/python
   when:
-      - amazon2cis_rule_4_1_1_1
+    - amazon2cis_rule_4_1_1_1
   tags:
-      - level2
-      - automated
-      - patch
-      - rule_4.1.1.1
-      - auditd
+    - level2
+    - automated
+    - patch
+    - rule_4.1.1.1
+    - auditd
 
 - name: "4.1.1.2 | PATCH | Ensure auditd service is enabled and running"
   service:

@@ -16,6 +16,16 @@
   tags:
       - always
 
+- name: Gather system facts
+  setup:
+  when: ansible_distribution is not defined
+
+- name: Set distribution facts manually if needed
+  set_fact:
+    ansible_distribution: "{{ ansible_distribution | default('Amazon') }}"
+    ansible_distribution_major_version: "{{ ansible_distribution_major_version | default('2') }}"
+  when: ansible_distribution is not defined or ansible_distribution_major_version is not defined
+
 - name: "check sugroup exists if used"
   block:
       - name: "Check su group exists if defined"
@@ -52,11 +62,17 @@
   tags:
       - run_audit
 
-- name: Gather the package facts
-  package_facts:
-      manager: auto
-  tags:
-      - always
+- name: Check for installed packages
+  shell: rpm -qa --qf "%{NAME}\n"
+  register: installed_packages_raw
+  changed_when: false
+  failed_when: false
+
+- name: Set package facts
+  set_fact:
+    ansible_facts:
+      packages: "{{ installed_packages_raw.stdout_lines | map('regex_replace', '^(.*)$', '\\1') | list | unique }}"
+  when: installed_packages_raw.rc == 0
 
 - include_tasks: section_1/main.yml
   when: amazon2cis_section1

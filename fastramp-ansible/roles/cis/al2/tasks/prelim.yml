@@ -69,33 +69,77 @@
 
 - name: "PRELIM | Section 1.6 | SELinux"
   block:
-      - name: "PRELIM | Section 1.6 | Ensure SELinux is installed"
-        package:
-            name:
-                - libselinux
-                - policycoreutils-python
-            state: present
+    - name: "PRELIM | Section 1.6 | Ensure SELinux is installed"
+      shell: |
+        if command -v dnf >/dev/null 2>&1; then
+          dnf install -y libselinux policycoreutils-python
+        elif command -v yum >/dev/null 2>&1; then
+          yum install -y libselinux policycoreutils-python
+        else
+          echo "No supported package manager found"
+          exit 1
+        fi
+      register: selinux_prereq_install
+      failed_when: selinux_prereq_install.rc != 0
+      changed_when: "'Nothing to do' not in selinux_prereq_install.stdout"
+      args:
+        executable: /bin/bash
 
-      - name: "PRELIM | Section 1.6 | Ensure firewalld_t is set to permissive"
-        shell: semanage permissive -a firewalld_t
+    - name: "PRELIM | Section 1.6 | Ensure firewalld_t is set to permissive"
+      shell: semanage permissive -a firewalld_t
+      failed_when: false
   when:
-      - not amazon2cis_selinux_disable
-  vars:
-      ansible_python_interpreter: /bin/python
+    - not amazon2cis_selinux_disable
 
 - name: "PRELIM | Section 4.1 | Configure System Accounting (auditd)"
-  package:
-      name: audit
-      state: present
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y audit
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y audit
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: audit_install
+  failed_when: audit_install.rc != 0
+  changed_when: "'Nothing to do' not in audit_install.stdout"
+  args:
+    executable: /bin/bash
+      # when: not python_bin_check.stat.exists
+      # changed_when: false
+
+    # - name: Install audit package using package module
+    #   package:
+    #     name: audit
+    #     state: present
+    #   vars:
+    #     ansible_python_interpreter: /bin/python
+    #   when: python_bin_check.stat.exists
+
 
 - name: "PRELIM | Section 5.1 | Configure cron"
-  package:
-      name: cronie
-      state: present
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y cronie
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y cronie
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: cronie_install
+  failed_when: cronie_install.rc != 0
+  changed_when: "'Nothing to do' not in cronie_install.stdout and 'already installed' not in cronie_install.stdout"
+  args:
+    executable: /bin/bash
+
+# - name: "PRELIM | Section 5.1 | Configure cron"
+#   package:
+#       name: cronie
+#       state: present
+#   vars:
+#       ansible_python_interpreter: /bin/python
 
 ### NOTE: You will need to adjust the UID range in parenthases below.
 ### ALSO NOTE: We weed out any user with a home dir not in standard locations because interactive users shouldn't have those paths as a home dir. Add or removed directory paths as needed below.

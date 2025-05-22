@@ -1,20 +1,29 @@
 ---
 
 - name: "1.6.1.1 | PATCH | Ensure SELinux is installed"
-  package:
-      name: libselinux
-      state: present
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf install -y libselinux
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y libselinux
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: selinux_install
+  failed_when: selinux_install.rc != 0
+  changed_when: "'Nothing to do' not in selinux_install.stdout and 'already installed' not in selinux_install.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - not amazon2cis_selinux_disable
-      - amazon2cis_rule_1_6_1_1
+    - not amazon2cis_selinux_disable
+    - amazon2cis_rule_1_6_1_1
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_1.6.1.1
-      - selinux
+    - level1
+    - automated
+    - patch
+    - rule_1.6.1.1
+    - selinux
 
 - name: "1.6.1.2 | PATCH | Ensure SELinux is not disabled in bootloader configuration"
   replace:
@@ -98,31 +107,49 @@
       - selinux
 
 - name: "1.6.1.7 | PATCH | Ensure SETroubleshoot is not installed"
-  package:
-      name: setroubleshoot
-      state: absent
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf remove -y setroubleshoot
+    elif command -v yum >/dev/null 2>&1; then
+      yum remove -y setroubleshoot
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: setroubleshoot_remove
+  failed_when: setroubleshoot_remove.rc != 0 and "No match for argument" not in setroubleshoot_remove.stderr
+  changed_when: "'Nothing to do' not in setroubleshoot_remove.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_1_6_1_7
+    - amazon2cis_rule_1_6_1_7
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_1.6.1.7
-      - selinux
+    - level1
+    - automated
+    - patch
+    - rule_1.6.1.7
+    - selinux
 
 - name: "1.6.1.8 | PATCH | Ensure the MCS Translation Service (mcstrans) is not installed"
-  package:
-      name: mcstrans
-      state: absent
-  vars:
-      ansible_python_interpreter: /bin/python
+  shell: |
+    if command -v dnf >/dev/null 2>&1; then
+      dnf remove -y mcstrans
+    elif command -v yum >/dev/null 2>&1; then
+      yum remove -y mcstrans
+    else
+      echo "No supported package manager found"
+      exit 1
+    fi
+  register: mcstrans_remove
+  failed_when: mcstrans_remove.rc != 0 and "No match for argument" not in mcstrans_remove.stderr
+  changed_when: "'Nothing to do' not in mcstrans_remove.stdout"
+  args:
+    executable: /bin/bash
   when:
-      - amazon2cis_rule_1_6_1_8
+    - amazon2cis_rule_1_6_1_8
   tags:
-      - level1
-      - automated
-      - patch
-      - rule_1.6.1.8
-      - mcstrans
+    - level1
+    - automated
+    - patch
+    - rule_1.6.1.8
+    - mcstrans
